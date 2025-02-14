@@ -66,12 +66,19 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
     const response = await fetch('https://api.raydium.io/v2/main/pairs');
     const data = await response.json();
     
+    console.log('Raw API response:', data[0]); // Log first token for debugging
+    
     // Sort by volume and take top 10
     return data
       .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
       .slice(0, 10)
       .map((token: any) => {
-        const priceChange = parseFloat(token.priceChange24h || '0');
+        // Check and log raw price change value
+        console.log('Raw price change for', token.name, ':', token.price24h);
+        
+        // Parse price change, ensuring we handle percentage properly
+        const priceChange = token.price24h ? parseFloat(token.price24h) * 100 : 0;
+        
         return {
           name: token.name || token.tokenSymbol,
           symbol: token.tokenSymbol,
