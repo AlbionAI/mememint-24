@@ -2,15 +2,27 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Home, Rocket, Droplets, Wallet } from "lucide-react";
+import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 
 export const Navigation = () => {
   const location = useLocation();
+  const { connected, disconnect } = useWallet();
+  const { setVisible } = useWalletModal();
 
   const isActive = (path: string) => location.pathname === path;
 
   const handleLiquidityClick = (e: React.MouseEvent) => {
     e.preventDefault();
     window.open('https://raydium.io/liquidity/create-pool/', '_blank');
+  };
+
+  const handleWalletClick = () => {
+    if (connected) {
+      disconnect();
+    } else {
+      setVisible(true);
+    }
   };
 
   return (
@@ -54,9 +66,10 @@ export const Navigation = () => {
           </div>
           <Button 
             className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+            onClick={handleWalletClick}
           >
             <Wallet className="w-4 h-4 mr-2" />
-            Connect Wallet
+            {connected ? 'Disconnect' : 'Connect Wallet'}
           </Button>
         </div>
       </div>

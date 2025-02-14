@@ -1,11 +1,14 @@
-import { useState } from "react";
+
 import { WalletConnect } from "@/components/WalletConnect";
 import { TokenConfig } from "@/components/TokenConfig";
 import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+import { useWallet } from '@solana/wallet-adapter-react';
+
 const Index = () => {
-  const [isWalletConnected, setIsWalletConnected] = useState(false);
+  const { connected } = useWallet();
+  
   return <>
       <Navigation />
       <main className="min-h-screen bg-slate-900 relative">
@@ -22,7 +25,7 @@ const Index = () => {
               
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-6">
-                  {!isWalletConnected ? <WalletConnect /> : <TokenConfig />}
+                  {!connected ? <WalletConnect /> : <TokenConfig />}
                 </div>
                 <div className="space-y-6">
                   <LaunchStatus />
@@ -34,4 +37,5 @@ const Index = () => {
       </main>
     </>;
 };
+
 export default Index;
