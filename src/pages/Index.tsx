@@ -1,5 +1,5 @@
 
-import { TokenForm } from "@/components/TokenForm";
+import { WalletConnect } from "@/components/WalletConnect";
 import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
@@ -21,7 +21,7 @@ const Index = () => {
               
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-6">
-                  <TokenForm />
+                  <WalletConnect />
                 </div>
                 <div className="space-y-6">
                   <LaunchStatus />
