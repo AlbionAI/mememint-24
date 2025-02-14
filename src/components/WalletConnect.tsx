@@ -2,23 +2,26 @@
 import { Card } from "@/components/ui/card";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from "sonner";
 
 export function WalletConnect() {
   const { connected, connecting, disconnect, publicKey, wallet } = useWallet();
+  const initialRender = useRef(true);
 
   // Handle connection status changes
   useEffect(() => {
-    if (connecting) {
+    // Only show connecting toast on initial connection attempt
+    if (connecting && initialRender.current) {
       toast.loading('Connecting wallet...', {
         duration: 1000
       });
     }
 
-    if (connected && publicKey) {
+    if (connected && publicKey && initialRender.current) {
       toast.success('Wallet connected successfully!');
       console.log('Connected wallet address:', publicKey.toBase58());
+      initialRender.current = false;
     }
   }, [connecting, connected, publicKey]);
 
