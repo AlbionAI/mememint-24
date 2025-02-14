@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,53 @@ export const TokenConfig = () => {
     description: ""
   });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const resizeImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 500;
+        canvas.height = 500;
+        const ctx = canvas.getContext('2d');
+        
+        if (!ctx) {
+          URL.revokeObjectURL(img.src);
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        // Draw image with proper scaling
+        ctx.drawImage(img, 0, 0, 500, 500);
+        
+        // Convert canvas to blob
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            URL.revokeObjectURL(img.src);
+            reject(new Error('Could not convert canvas to blob'));
+            return;
+          }
+          
+          // Create new file from blob
+          const resizedFile = new File([blob], file.name, {
+            type: 'image/png',
+            lastModified: Date.now(),
+          });
+          
+          URL.revokeObjectURL(img.src);
+          resolve(resizedFile);
+        }, 'image/png');
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(img.src);
+        reject(new Error('Error loading image'));
+      };
+    });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -36,20 +81,14 @@ export const TokenConfig = () => {
       return;
     }
 
-    // Create an image object to check dimensions
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    img.onload = () => {
-      if (img.width !== 500 || img.height !== 500) {
-        toast.error("Image must be 500x500 pixels");
-        URL.revokeObjectURL(img.src);
-        return;
-      }
-      
-      setTokenData(prev => ({ ...prev, logo: file }));
-      toast.success("Logo uploaded successfully!");
-      URL.revokeObjectURL(img.src);
-    };
+    try {
+      const resizedFile = await resizeImage(file);
+      setTokenData(prev => ({ ...prev, logo: resizedFile }));
+      toast.success("Logo uploaded and resized successfully!");
+    } catch (error) {
+      toast.error("Error processing image");
+      console.error(error);
+    }
   };
 
   const handleNext = () => {
@@ -104,13 +143,13 @@ export const TokenConfig = () => {
                           alt="Token logo preview" 
                           className="w-16 h-16 rounded-full"
                         />
-                        <p className="text-sm text-emerald-400">Logo uploaded!</p>
+                        <p className="text-sm text-emerald-400">Logo uploaded and resized to 500x500!</p>
                       </div>
                     ) : (
                       <>
                         <Upload className="w-8 h-8 text-slate-400" />
-                        <p className="text-sm text-slate-400">Drop your 500 x 500 token logo here</p>
-                        <p className="text-xs text-slate-500">PNG, JPG, GIF up to 5MB</p>
+                        <p className="text-sm text-slate-400">Drop your token logo here</p>
+                        <p className="text-xs text-slate-500">Any size image will be resized to 500x500</p>
                       </>
                     )}
                   </div>
