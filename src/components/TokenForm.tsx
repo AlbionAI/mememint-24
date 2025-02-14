@@ -41,7 +41,7 @@ export const TokenForm = () => {
     <Card className="p-6 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <Rocket className="w-5 h-5 text-[#9b87f5]" />
+          <Rocket className="w-5 h-5 text-[#2A0134]" />
           <h3 className="text-lg font-semibold text-white">Token Configuration</h3>
         </div>
         <p className="text-sm text-slate-400">Configure your token parameters</p>
@@ -49,7 +49,7 @@ export const TokenForm = () => {
       
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-[#9b87f5]">
+          <div className="flex items-center gap-2 text-[#2A0134]">
             <Coins className="w-4 h-4" />
             <span className="text-sm font-medium">Basic Information</span>
           </div>
@@ -109,7 +109,7 @@ export const TokenForm = () => {
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-[#9b87f5]">
+          <div className="flex items-center gap-2 text-[#2A0134]">
             <Settings className="w-4 h-4" />
             <span className="text-sm font-medium">Advanced Settings</span>
           </div>
@@ -171,7 +171,7 @@ export const TokenForm = () => {
 
         <Button
           type="submit"
-          className="w-full bg-[#8B5CF6] hover:bg-[#7C3AED] text-white transition-all duration-200"
+          className="w-full bg-[#2A0134] hover:bg-[#2A0134]/80 text-white transition-all duration-200"
         >
           <Shield className="w-4 h-4 mr-2 text-white" />
           Deploy Token
