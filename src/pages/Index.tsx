@@ -1,6 +1,5 @@
 
 import { TokenConfig } from "@/components/TokenConfig";
-import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { WalletConnect } from "@/components/WalletConnect";
@@ -12,9 +11,6 @@ const Index = () => {
   return (
     <>
       <Navigation />
-      <div className="fixed top-0 right-0 left-0 z-50">
-        <LaunchStatus />
-      </div>
       <main className="min-h-screen bg-slate-900 relative">
         <div className="absolute inset-0 overflow-hidden">
           <BackgroundBeams className="opacity-40" />
