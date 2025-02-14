@@ -1,6 +1,5 @@
 
 import { Card } from "@/components/ui/card";
-import { Wallet } from "lucide-react";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { toast } from "sonner";
@@ -15,7 +14,7 @@ export const WalletConnect = () => {
     }
   }, [connected]);
 
-  console.log('Wallet state:', { connected, connecting }); // Debug log
+  console.log('Wallet state:', { connected, connecting });
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
@@ -29,12 +28,7 @@ export const WalletConnect = () => {
       </div>
       
       <div className="flex justify-center pt-4">
-        <WalletMultiButton 
-          className="wallet-adapter-button-trigger px-8 py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium text-lg transition-all duration-200 shadow-lg hover:shadow-emerald-500/25 rounded-md flex items-center"
-        >
-          <Wallet className="w-5 h-5 mr-2" />
-          {connecting ? 'Connecting...' : 'Connect Wallet'}
-        </WalletMultiButton>
+        <WalletMultiButton />
       </div>
     </Card>
   );
