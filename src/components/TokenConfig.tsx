@@ -12,7 +12,7 @@ export const TokenConfig = () => {
     name: "",
     symbol: "",
     logo: null as File | null,
-    decimals: "9",
+    decimals: 9, // Changed from string to number
     totalSupply: "1000000000",
     description: "",
     website: "",

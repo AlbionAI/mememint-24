@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 interface TokenSupplyDetailsProps {
   tokenData: {
-    decimals: string;
+    decimals: number;
     totalSupply: string;
     description: string;
   };
@@ -23,20 +23,16 @@ export const TokenSupplyDetails = ({
   onNext
 }: TokenSupplyDetailsProps) => {
   const handleNext = () => {
-    // Basic validation
     if (!tokenData.decimals || !tokenData.totalSupply) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    // Convert to number for validation
-    const decimals = Number(tokenData.decimals);
-    if (isNaN(decimals) || decimals < 0 || decimals > 18) {
+    if (tokenData.decimals < 0 || tokenData.decimals > 18) {
       toast.error("Decimals must be between 0 and 18");
       return;
     }
 
-    // If validation passes, proceed to next step
     onNext();
   };
 
@@ -51,7 +47,7 @@ export const TokenSupplyDetails = ({
               placeholder="Enter decimals"
               className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
               value={tokenData.decimals}
-              onChange={(e) => onTokenDataChange({ ...tokenData, decimals: e.target.value })}
+              onChange={(e) => onTokenDataChange({ ...tokenData, decimals: Number(e.target.value) })}
               min="0"
               max="18"
             />
