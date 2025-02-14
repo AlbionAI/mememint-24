@@ -1,7 +1,8 @@
 
+import { Buffer } from 'buffer';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { toast } from "sonner"; // Add this import
+import { toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -18,6 +19,9 @@ import { useMemo } from 'react';
 
 // Import wallet adapter CSS
 import '@solana/wallet-adapter-react-ui/styles.css';
+
+// Make Buffer available globally
+window.Buffer = Buffer;
 
 const queryClient = new QueryClient();
 

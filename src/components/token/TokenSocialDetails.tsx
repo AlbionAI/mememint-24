@@ -6,8 +6,8 @@ import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
 import { Coins } from "lucide-react";
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { createMint, getAccount } from '@solana/spl-token';
-import { Keypair, SystemProgram, Transaction } from '@solana/web3.js';
+import { createMint } from '@solana/spl-token';
+import { Keypair, SystemProgram, Transaction, clusterApiUrl, PublicKey } from '@solana/web3.js';
 import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
@@ -73,29 +73,34 @@ export const TokenSocialDetails = ({
       
       const transaction = new Transaction();
       
+      // Add account creation instruction
       transaction.add(
         SystemProgram.createAccount({
           fromPubkey: publicKey,
           newAccountPubkey: mintKeypair.publicKey,
           space: 82,
           lamports,
-          programId: createMint.programId
+          programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
         })
       );
 
-      // Add the create mint instruction
-      transaction.add(
-        await createMint(
-          connection,
-          {
-            publicKey: publicKey,
-            secretKey: new Uint8Array(32) // This is just a placeholder, the wallet will sign
-          },
-          publicKey,
-          publicKey,
-          tokenData.decimals
-        )
+      // Create mint instruction
+      const createMintInstr = await createMint(
+        connection,
+        {
+          publicKey: publicKey,
+          secretKey: new Uint8Array(32) // This is just a placeholder, the wallet will sign
+        },
+        publicKey,
+        publicKey,
+        tokenData.decimals,
+        mintKeypair,
+        undefined,
+        new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
       );
+
+      // Add the create mint instruction
+      transaction.add(createMintInstr);
 
       const signature = await sendTransaction(transaction, connection, {
         signers: [mintKeypair]
