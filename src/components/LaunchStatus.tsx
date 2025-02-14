@@ -8,7 +8,7 @@ export const LaunchStatus = () => {
     <Card className="p-6 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
       <div className="space-y-2">
         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-          <Lock className="w-5 h-5 text-emerald-500" />
+          <Lock className="w-5 h-5 text-purple-500" />
           Launch Status
         </h3>
         <p className="text-sm text-slate-400">Track your token launch progress</p>
@@ -17,13 +17,13 @@ export const LaunchStatus = () => {
         <div className="space-y-2">
           <div className="flex justify-between items-center text-sm">
             <div className="flex items-center gap-2">
-              <Circle className="w-4 h-4 text-emerald-500" />
+              <Circle className="w-4 h-4 text-purple-500" />
               <span className="text-slate-300">Contract Deployment</span>
             </div>
             <span className="text-slate-400 font-medium">Pending</span>
           </div>
           <Progress value={0} className="h-2 bg-slate-700">
-            <div className="h-full bg-emerald-600 transition-all duration-500" />
+            <div className="h-full bg-purple-600 transition-all duration-500" />
           </Progress>
         </div>
         
@@ -36,7 +36,7 @@ export const LaunchStatus = () => {
             <span className="text-slate-400 font-medium">Not Started</span>
           </div>
           <Progress value={0} className="h-2 bg-slate-700">
-            <div className="h-full bg-emerald-600 transition-all duration-500" />
+            <div className="h-full bg-purple-600 transition-all duration-500" />
           </Progress>
         </div>
         
@@ -49,7 +49,7 @@ export const LaunchStatus = () => {
             <span className="text-slate-400 font-medium">Not Started</span>
           </div>
           <Progress value={0} className="h-2 bg-slate-700">
-            <div className="h-full bg-emerald-600 transition-all duration-500" />
+            <div className="h-full bg-purple-600 transition-all duration-500" />
           </Progress>
         </div>
       </div>
