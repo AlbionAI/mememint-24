@@ -1,29 +1,18 @@
 
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useWallet } from '@solana/wallet-adapter-react';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { useEffect } from 'react';
 import { toast } from "sonner";
 
 export function WalletConnect() {
-  const { connected, connecting, wallet, connect, disconnect } = useWallet();
+  const { connected } = useWallet();
 
   useEffect(() => {
     if (connected) {
       toast.success('Wallet connected successfully!');
     }
   }, [connected]);
-
-  const handleConnect = async () => {
-    try {
-      if (!connected && wallet) {
-        await connect();
-      }
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
-      toast.error('Failed to connect wallet. Please try again.');
-    }
-  };
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
@@ -37,12 +26,11 @@ export function WalletConnect() {
       </div>
       
       <div className="flex justify-center pt-4">
-        <Button 
-          onClick={handleConnect}
-          className="bg-purple-600 hover:bg-purple-700 text-white font-medium px-8 py-2"
+        <WalletMultiButton 
+          className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
         >
-          Select Wallet
-        </Button>
+          Connect Wallet
+        </WalletMultiButton>
       </div>
     </Card>
   );
