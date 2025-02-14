@@ -16,11 +16,13 @@ export function WalletConnect() {
 
   useEffect(() => {
     // Log wallet availability and connection attempts
+    const isPhantomAvailable = typeof window !== 'undefined' && 'solana' in window;
+    
     console.log('Wallet state:', {
       wallet: wallet?.adapter?.name,
       connected,
       connecting,
-      isPhantomAvailable: typeof window !== 'undefined' && window?.solana?.isPhantom
+      isPhantomAvailable
     });
   }, [wallet, connected, connecting]);
 
