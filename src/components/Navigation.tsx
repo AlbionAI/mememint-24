@@ -8,6 +8,11 @@ export const Navigation = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  const handleLiquidityClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.open('https://raydium.io/liquidity/create-pool/', '_blank');
+  };
+
   return (
     <div className="fixed top-0 left-0 right-0 bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 z-50">
       <div className="container mx-auto px-4">
@@ -39,15 +44,14 @@ export const Navigation = () => {
               Promote
             </Button>
           </Link>
-          <Link to="/liquidity">
-            <Button 
-              variant={isActive('/liquidity') ? "default" : "ghost"}
-              className={isActive('/liquidity') ? "bg-purple-600 hover:bg-purple-700" : "text-slate-400 hover:text-white"}
-            >
-              <Droplets className="h-4 w-4 mr-2" />
-              Liquidity
-            </Button>
-          </Link>
+          <Button 
+            variant="ghost"
+            className="text-slate-400 hover:text-white"
+            onClick={handleLiquidityClick}
+          >
+            <Droplets className="h-4 w-4 mr-2" />
+            Liquidity
+          </Button>
         </div>
       </div>
     </div>

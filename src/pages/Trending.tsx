@@ -1,27 +1,48 @@
+
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Share2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
 
+interface Token {
+  name: string;
+  symbol: string;
+  price: string;
+  change: string;
+  isUp: boolean;
+  volume: string;
+}
+
+const fetchTrendingTokens = async (): Promise<Token[]> => {
+  try {
+    const response = await fetch('https://api.raydium.io/v2/main/pairs');
+    const data = await response.json();
+    
+    // Sort by volume and take top 10
+    return data
+      .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
+      .slice(0, 10)
+      .map((token: any) => ({
+        name: token.name || token.tokenSymbol,
+        symbol: token.tokenSymbol,
+        price: parseFloat(token.price).toFixed(6),
+        change: `${parseFloat(token.priceChange24h).toFixed(2)}%`,
+        isUp: parseFloat(token.priceChange24h) >= 0,
+        volume: `${(parseFloat(token.volume24h) / 1000).toFixed(1)}K`,
+      }));
+  } catch (error) {
+    console.error('Error fetching trending tokens:', error);
+    return [];
+  }
+};
+
 const Trending = () => {
-  const trendingTokens = [
-    {
-      name: "Sample Token 1",
-      symbol: "ST1",
-      price: "0.000234",
-      change: "+15.2%",
-      isUp: true,
-      volume: "123.4K",
-    },
-    {
-      name: "Sample Token 2",
-      symbol: "ST2",
-      price: "0.000567",
-      change: "-5.8%",
-      isUp: false,
-      volume: "89.2K",
-    },
-  ];
+  const { data: trendingTokens = [], isLoading } = useQuery({
+    queryKey: ['trendingTokens'],
+    queryFn: fetchTrendingTokens,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
 
   return (
     <>
@@ -39,43 +60,49 @@ const Trending = () => {
             </div>
 
             <div className="grid gap-4">
-              {trendingTokens.map((token, index) => (
-                <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-purple-500/50 transition-all duration-300">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                        {token.isUp ? (
-                          <TrendingUp className="h-5 w-5 text-green-400" />
-                        ) : (
-                          <TrendingDown className="h-5 w-5 text-red-400" />
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="text-white font-semibold">{token.name}</h3>
-                        <p className="text-slate-400 text-sm">{token.symbol}</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-white font-medium">${token.price}</p>
-                      <p className={`text-sm ${token.isUp ? 'text-green-400' : 'text-red-400'}`}>
-                        {token.change}
-                      </p>
-                    </div>
-                    <div className="text-right ml-8">
-                      <p className="text-white font-medium">${token.volume}</p>
-                      <p className="text-slate-400 text-sm">Volume</p>
-                    </div>
-                    <div className="flex gap-2 ml-8">
-                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-                        <Share2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+              {isLoading ? (
+                <Card className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700">
+                  <div className="text-center text-slate-400">Loading trending tokens...</div>
                 </Card>
-              ))}
+              ) : (
+                trendingTokens.map((token, index) => (
+                  <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-purple-500/50 transition-all duration-300">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                          {token.isUp ? (
+                            <TrendingUp className="h-5 w-5 text-green-400" />
+                          ) : (
+                            <TrendingDown className="h-5 w-5 text-red-400" />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="text-white font-semibold">{token.name}</h3>
+                          <p className="text-slate-400 text-sm">{token.symbol}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-white font-medium">${token.price}</p>
+                        <p className={`text-sm ${token.isUp ? 'text-green-400' : 'text-red-400'}`}>
+                          {token.change}
+                        </p>
+                      </div>
+                      <div className="text-right ml-8">
+                        <p className="text-white font-medium">${token.volume}</p>
+                        <p className="text-slate-400 text-sm">Volume</p>
+                      </div>
+                      <div className="flex gap-2 ml-8">
+                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                          <Share2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                          <ExternalLink className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
             </div>
           </div>
         </div>
