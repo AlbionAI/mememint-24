@@ -3,7 +3,6 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useState } from "react";
 
 interface TokenSocialDetailsProps {
   tokenData: {
@@ -13,6 +12,10 @@ interface TokenSocialDetailsProps {
     discord: string;
     creatorName: string;
     creatorWebsite: string;
+    modifyCreator: boolean;
+    revokeFreeze: boolean;
+    revokeMint: boolean;
+    revokeUpdate: boolean;
   };
   onTokenDataChange: (data: any) => void;
   onBack: () => void;
@@ -23,11 +26,6 @@ export const TokenSocialDetails = ({
   onTokenDataChange,
   onBack
 }: TokenSocialDetailsProps) => {
-  const [modifyCreator, setModifyCreator] = useState(false);
-  const [revokeFreeze, setRevokeFreeze] = useState(false);
-  const [revokeMint, setRevokeMint] = useState(false);
-  const [revokeUpdate, setRevokeUpdate] = useState(false);
-
   return (
     <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
       <div className="space-y-6">
@@ -76,8 +74,8 @@ export const TokenSocialDetails = ({
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-400">(+0.1 SOL)</span>
               <Switch 
-                checked={modifyCreator}
-                onCheckedChange={setModifyCreator}
+                checked={tokenData.modifyCreator}
+                onCheckedChange={(checked) => onTokenDataChange({ ...tokenData, modifyCreator: checked })}
                 className="data-[state=checked]:bg-emerald-500"
               />
             </div>
@@ -93,7 +91,7 @@ export const TokenSocialDetails = ({
                 className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
                 value={tokenData.creatorName}
                 onChange={(e) => onTokenDataChange({ ...tokenData, creatorName: e.target.value })}
-                disabled={!modifyCreator}
+                disabled={!tokenData.modifyCreator}
               />
             </div>
             <div className="space-y-2">
@@ -103,7 +101,7 @@ export const TokenSocialDetails = ({
                 className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
                 value={tokenData.creatorWebsite}
                 onChange={(e) => onTokenDataChange({ ...tokenData, creatorWebsite: e.target.value })}
-                disabled={!modifyCreator}
+                disabled={!tokenData.modifyCreator}
               />
             </div>
           </div>
@@ -124,8 +122,8 @@ export const TokenSocialDetails = ({
                     Freeze Authority allows you to freeze token accounts of your holders.
                   </p>
                   <Switch 
-                    checked={revokeFreeze}
-                    onCheckedChange={setRevokeFreeze}
+                    checked={tokenData.revokeFreeze}
+                    onCheckedChange={(checked) => onTokenDataChange({ ...tokenData, revokeFreeze: checked })}
                     className="data-[state=checked]:bg-emerald-500"
                   />
                 </div>
@@ -140,8 +138,8 @@ export const TokenSocialDetails = ({
                     Mint Authority allows you to mint more supply of your token.
                   </p>
                   <Switch 
-                    checked={revokeMint}
-                    onCheckedChange={setRevokeMint}
+                    checked={tokenData.revokeMint}
+                    onCheckedChange={(checked) => onTokenDataChange({ ...tokenData, revokeMint: checked })}
                     className="data-[state=checked]:bg-emerald-500"
                   />
                 </div>
@@ -156,8 +154,8 @@ export const TokenSocialDetails = ({
                     Update Authority allows you to update the token metadata.
                   </p>
                   <Switch 
-                    checked={revokeUpdate}
-                    onCheckedChange={setRevokeUpdate}
+                    checked={tokenData.revokeUpdate}
+                    onCheckedChange={(checked) => onTokenDataChange({ ...tokenData, revokeUpdate: checked })}
                     className="data-[state=checked]:bg-emerald-500"
                   />
                 </div>

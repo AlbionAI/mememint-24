@@ -20,8 +20,12 @@ export const TokenConfig = () => {
     twitter: "",
     telegram: "",
     discord: "",
-    creatorName: "CoinFast",
-    creatorWebsite: "https://coinfast.fun"
+    creatorName: "MemeMint",
+    creatorWebsite: "https://mememint.co",
+    modifyCreator: false,
+    revokeFreeze: false,
+    revokeMint: false,
+    revokeUpdate: false
   });
 
   const resizeImage = (file: File): Promise<File> => {
