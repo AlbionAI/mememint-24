@@ -21,9 +21,11 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 const queryClient = new QueryClient();
 
 function App() {
+  // You can use other networks like WalletAdapterNetwork.Mainnet for production
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   
+  // Only include wallets you want to support
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
@@ -33,7 +35,7 @@ function App() {
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect={false}>
+      <WalletProvider wallets={wallets} autoConnect={true}>
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>

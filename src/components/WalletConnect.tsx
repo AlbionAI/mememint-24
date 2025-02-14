@@ -6,13 +6,14 @@ import { useEffect } from 'react';
 import { toast } from "sonner";
 
 export function WalletConnect() {
-  const { connected } = useWallet();
+  const { connected, publicKey } = useWallet();
 
   useEffect(() => {
-    if (connected) {
+    if (connected && publicKey) {
       toast.success('Wallet connected successfully!');
+      console.log('Connected with public key:', publicKey.toBase58());
     }
-  }, [connected]);
+  }, [connected, publicKey]);
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
@@ -28,9 +29,7 @@ export function WalletConnect() {
       <div className="flex justify-center pt-4">
         <WalletMultiButton 
           className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
-        >
-          Connect Wallet
-        </WalletMultiButton>
+        />
       </div>
     </Card>
   );
