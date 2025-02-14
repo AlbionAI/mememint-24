@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -6,9 +7,16 @@ import { useEffect } from "react";
 import { Coins } from "lucide-react";
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { createToken } from '@/utils/tokenCreation';
+import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
   tokenData: {
+    name: string;
+    symbol: string;
+    description: string;
+    totalSupply: string;
+    decimals: string;
+    logo: File | null;
     website: string;
     twitter: string;
     telegram: string;
@@ -58,7 +66,21 @@ export const TokenSocialDetails = ({
       // Show loading toast
       toast.loading('Creating your token...', { duration: 10000 });
 
-      const result = await createToken(connection, wallet, tokenData);
+      const result = await createToken(connection, wallet, {
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        description: tokenData.description,
+        totalSupply: tokenData.totalSupply,
+        decimals: tokenData.decimals,
+        logo: tokenData.logo,
+        website: tokenData.website,
+        twitter: tokenData.twitter,
+        telegram: tokenData.telegram,
+        discord: tokenData.discord,
+        revokeFreeze: tokenData.revokeFreeze,
+        revokeMint: tokenData.revokeMint,
+        revokeUpdate: tokenData.revokeUpdate
+      });
 
       // Show success toast with mint address
       toast.success('Token created successfully!', {
