@@ -73,7 +73,7 @@ const Trending = () => {
     queryFn: fetchTrendingTokens,
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 10000, // Consider data fresh for 10 seconds
-    cacheTime: 60000, // Keep data in cache for 1 minute
+    gcTime: 60000, // Keep data in cache for 1 minute (formerly cacheTime)
   });
 
   return (
