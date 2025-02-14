@@ -20,7 +20,7 @@ export const WalletConnect = () => {
           className="px-8 py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium text-lg transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
         >
           <Wallet className="w-5 h-5 mr-2" />
-          Select Wallet
+          Connect Wallet
         </Button>
       </div>
     </Card>
