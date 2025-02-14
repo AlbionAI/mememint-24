@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload } from "lucide-react";
+import { Upload, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useWallet } from '@solana/wallet-adapter-react';
@@ -102,6 +102,50 @@ export const TokenConfig = () => {
 
   return (
     <div className="space-y-8">
+      {/* Step Tracker */}
+      <div className="flex items-center justify-center space-x-4 md:space-x-8">
+        <div className="flex items-center">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            step >= 1 ? 'bg-emerald-500' : 'bg-slate-700'
+          }`}>
+            {step > 1 ? (
+              <CheckCircle2 className="w-6 h-6 text-white" />
+            ) : (
+              <span className="text-white font-medium">1</span>
+            )}
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-white">Token Details</p>
+          </div>
+        </div>
+        
+        <div className={`flex-1 h-0.5 max-w-[100px] ${
+          step > 1 ? 'bg-emerald-500' : 'bg-slate-700'
+        }`} />
+        
+        <div className="flex items-center">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+            step >= 2 ? 'bg-emerald-500' : 'bg-slate-700'
+          }`}>
+            <span className="text-white font-medium">2</span>
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-white">Configuration</p>
+          </div>
+        </div>
+        
+        <div className="flex-1 h-0.5 max-w-[100px] bg-slate-700" />
+        
+        <div className="flex items-center">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-700">
+            <span className="text-white font-medium">3</span>
+          </div>
+          <div className="ml-3">
+            <p className="text-sm font-medium text-white">Coming Soon</p>
+          </div>
+        </div>
+      </div>
+
       {step === 1 && (
         <div className="grid gap-8 md:grid-cols-2">
           <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
