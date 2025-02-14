@@ -18,9 +18,9 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 
 const queryClient = new QueryClient();
 
-const App = () => {
+function App() {
+  // Initialize these values outside of any conditions
   const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
-  // Use empty array since Phantom is already registered as a Standard Wallet
   const wallets = useMemo(() => [], []);
 
   return (
@@ -45,6 +45,6 @@ const App = () => {
       </WalletProvider>
     </ConnectionProvider>
   );
-};
+}
 
 export default App;

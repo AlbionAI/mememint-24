@@ -5,7 +5,7 @@ import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { toast } from "sonner";
 import { useEffect } from "react";
 
-export const WalletConnect = () => {
+export function WalletConnect() {
   const { connected, connecting } = useWallet();
 
   useEffect(() => {
@@ -28,8 +28,8 @@ export const WalletConnect = () => {
       </div>
       
       <div className="flex justify-center pt-4">
-        <WalletMultiButton />
+        <WalletMultiButton className="wallet-adapter-button-trigger" />
       </div>
     </Card>
   );
-};
+}
