@@ -10,7 +10,6 @@ import Liquidity from "./pages/Liquidity";
 import NotFound from "./pages/NotFound";
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
 
@@ -21,12 +20,8 @@ const queryClient = new QueryClient();
 
 const App = () => {
   const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
-  const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter()
-    ],
-    []
-  );
+  // Use empty array since Phantom is already registered as a Standard Wallet
+  const wallets = useMemo(() => [], []);
 
   return (
     <ConnectionProvider endpoint={endpoint}>
