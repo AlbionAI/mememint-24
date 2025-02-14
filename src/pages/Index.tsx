@@ -1,14 +1,11 @@
-
 import { useState } from "react";
 import { WalletConnect } from "@/components/WalletConnect";
 import { TokenConfig } from "@/components/TokenConfig";
 import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
-
 const Index = () => {
   const [isWalletConnected, setIsWalletConnected] = useState(false);
-
   return <>
       <Navigation />
       <main className="min-h-screen bg-slate-900 relative">
@@ -19,7 +16,7 @@ const Index = () => {
           <div className="container px-4 py-8 mx-auto">
             <div className="max-w-6xl mx-auto space-y-8">
               <div className="text-center space-y-4">
-                <h1 className="text-4xl font-bold text-white tracking-tight">Launch Tokens</h1>
+                <h1 className="text-4xl font-bold text-white tracking-tight">Launch a Meme Coin At Lightning Speed</h1>
                 <p className="text-lg text-slate-400 max-w-2xl mx-auto">No coding required, launched in seconds the professional way.</p>
               </div>
               
@@ -37,5 +34,4 @@ const Index = () => {
       </main>
     </>;
 };
-
 export default Index;
