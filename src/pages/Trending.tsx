@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Share2, ExternalLink } from "lucide-react";
@@ -13,6 +14,7 @@ interface Token {
   isUp: boolean;
   volume: string;
   address: string;
+  logoURI?: string;
 }
 
 const LoadingSkeleton = () => (
@@ -65,26 +67,31 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
     const response = await fetch('https://api.raydium.io/v2/main/pairs');
     const data = await response.json();
     
-    console.log('Raw API response:', data[0]); // Log first token for debugging
+    // Fetch token list to get logos
+    const tokenListResponse = await fetch('https://api.raydium.io/v2/sdk/token/raydium.mainnet.json');
+    const tokenList = await tokenListResponse.json();
+    const tokenMap = new Map(tokenList.tokens.map((t: any) => [t.address, t]));
     
     // Sort by volume and take top 10
     return data
       .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
       .slice(0, 10)
       .map((token: any) => {
-        // Calculate percentage change using current price and price24hAgo
-        const currentPrice = parseFloat(token.price);
-        const price24hAgo = currentPrice / (1 + (parseFloat(token.price24h) || 0));
-        const priceChange = ((currentPrice - price24hAgo) / price24hAgo) * 100;
+        const priceNow = parseFloat(token.price);
+        const priceChange = parseFloat(token.priceChange24hPercent || '0');
 
+        // Find token logo
+        const tokenInfo = tokenMap.get(token.tokenMint);
+        
         return {
           name: token.name || token.tokenSymbol,
           symbol: token.tokenSymbol,
-          price: formatCurrency(currentPrice),
+          price: formatCurrency(priceNow),
           change: `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}% (1D)`,
           isUp: priceChange >= 0,
           volume: formatCurrency(parseFloat(token.volume24h)),
           address: token.tokenMint || '',
+          logoURI: tokenInfo?.logoURI || undefined
         };
       });
   } catch (error) {
@@ -98,9 +105,9 @@ const Trending = () => {
   const { data: trendingTokens = [], isLoading } = useQuery({
     queryKey: ['trendingTokens'],
     queryFn: fetchTrendingTokens,
-    refetchInterval: 30000, // Refresh every 30 seconds
-    staleTime: 10000, // Consider data fresh for 10 seconds
-    gcTime: 60000, // Keep data in cache for 1 minute
+    refetchInterval: 30000,
+    staleTime: 10000,
+    gcTime: 60000,
   });
 
   const handleCopyAddress = (address: string) => {
@@ -138,11 +145,25 @@ const Trending = () => {
                   <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-purple-500/50 transition-all duration-300">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-                          {token.isUp ? (
-                            <TrendingUp className="h-5 w-5 text-green-400" />
+                        <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center overflow-hidden">
+                          {token.logoURI ? (
+                            <img 
+                              src={token.logoURI} 
+                              alt={token.symbol}
+                              className="w-8 h-8 object-contain"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = token.isUp ? 
+                                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234ade80' stroke-width='2'%3E%3Cpath d='M23 6l-9.5 9.5-5-5L1 18'/%3E%3Cpath d='M17 6h6v6'/%3E%3C/svg%3E" :
+                                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f87171' stroke-width='2'%3E%3Cpath d='M23 18l-9.5-9.5-5 5L1 6'/%3E%3Cpath d='M17 18h6v-6'/%3E%3C/svg%3E";
+                              }}
+                            />
                           ) : (
-                            <TrendingDown className="h-5 w-5 text-red-400" />
+                            token.isUp ? (
+                              <TrendingUp className="h-5 w-5 text-green-400" />
+                            ) : (
+                              <TrendingDown className="h-5 w-5 text-red-400" />
+                            )
                           )}
                         </div>
                         <div>
