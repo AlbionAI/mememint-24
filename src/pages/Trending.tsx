@@ -14,6 +14,36 @@ interface Token {
   volume: string;
 }
 
+const LoadingSkeleton = () => (
+  <>
+    {[...Array(10)].map((_, index) => (
+      <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-slate-700"></div>
+            <div>
+              <div className="h-4 w-32 bg-slate-700 rounded mb-2"></div>
+              <div className="h-3 w-20 bg-slate-700 rounded"></div>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="h-4 w-24 bg-slate-700 rounded mb-2"></div>
+            <div className="h-3 w-16 bg-slate-700 rounded"></div>
+          </div>
+          <div className="text-right ml-8">
+            <div className="h-4 w-24 bg-slate-700 rounded mb-2"></div>
+            <div className="h-3 w-16 bg-slate-700 rounded"></div>
+          </div>
+          <div className="flex gap-2 ml-8">
+            <div className="h-8 w-8 bg-slate-700 rounded"></div>
+            <div className="h-8 w-8 bg-slate-700 rounded"></div>
+          </div>
+        </div>
+      </Card>
+    ))}
+  </>
+);
+
 const fetchTrendingTokens = async (): Promise<Token[]> => {
   try {
     const response = await fetch('https://api.raydium.io/v2/main/pairs');
@@ -42,6 +72,8 @@ const Trending = () => {
     queryKey: ['trendingTokens'],
     queryFn: fetchTrendingTokens,
     refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    cacheTime: 60000, // Keep data in cache for 1 minute
   });
 
   return (
@@ -61,9 +93,7 @@ const Trending = () => {
 
             <div className="grid gap-4">
               {isLoading ? (
-                <Card className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700">
-                  <div className="text-center text-slate-400">Loading trending tokens...</div>
-                </Card>
+                <LoadingSkeleton />
               ) : (
                 trendingTokens.map((token, index) => (
                   <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-purple-500/50 transition-all duration-300">
