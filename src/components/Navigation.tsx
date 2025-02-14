@@ -14,7 +14,7 @@ export const Navigation = () => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-emerald-900/90 backdrop-blur-sm border-b border-emerald-800 z-50">
+    <div className="fixed top-0 left-0 right-0 bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center h-16">
           <Link to="/" className="mr-8">
