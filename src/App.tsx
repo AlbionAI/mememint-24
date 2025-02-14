@@ -10,6 +10,7 @@ import Liquidity from "./pages/Liquidity";
 import NotFound from "./pages/NotFound";
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
 
@@ -19,14 +20,19 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 const queryClient = new QueryClient();
 
 const App = () => {
+  // You can also provide a custom RPC endpoint
   const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
 
-  // Don't initialize any wallets here since Phantom is registered as a Standard Wallet
-  const wallets = useMemo(() => [], []);
+  const wallets = useMemo(
+    () => [
+      new PhantomWalletAdapter(),
+    ],
+    []
+  );
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets}>
+      <WalletProvider wallets={wallets} autoConnect={true}>
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
