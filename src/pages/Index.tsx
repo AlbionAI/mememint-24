@@ -23,18 +23,17 @@ const Index = () => {
                 <p className="text-lg text-slate-400 max-w-2xl mx-auto">No coding required, launched in seconds the professional way.</p>
               </div>
               
-              <div className="grid gap-8 md:grid-cols-2">
-                <div className="space-y-6">
+              {!connected ? (
+                <div className="flex justify-center items-center py-12">
                   <WalletConnect />
                 </div>
-                <div className="space-y-6">
-                  {connected && (
-                    <div className="animate-fade-in">
-                      <TokenConfig />
-                    </div>
-                  )}
+              ) : (
+                <div className="grid gap-8 md:grid-cols-2">
+                  <div className="col-span-2">
+                    <TokenConfig />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
