@@ -1,3 +1,4 @@
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -5,8 +6,8 @@ import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
 import { Coins } from "lucide-react";
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { createMint, getAssociatedTokenAddress, createAssociatedTokenAccount, mintTo } from '@solana/spl-token';
-import { Keypair, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
+import { createMint, getAccount } from '@solana/spl-token';
+import { Keypair, SystemProgram, Transaction } from '@solana/web3.js';
 import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
@@ -67,28 +68,36 @@ export const TokenSocialDetails = ({
 
       // Create new mint
       const mintKeypair = Keypair.generate();
-      const decimals = Number(tokenData.decimals);
-
+      
       const lamports = await connection.getMinimumBalanceForRentExemption(82);
       
-      const createMintTransaction = new Transaction().add(
+      const transaction = new Transaction();
+      
+      transaction.add(
         SystemProgram.createAccount({
           fromPubkey: publicKey,
           newAccountPubkey: mintKeypair.publicKey,
           space: 82,
           lamports,
-          programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        }),
-        createMint(
+          programId: createMint.programId
+        })
+      );
+
+      // Add the create mint instruction
+      transaction.add(
+        await createMint(
           connection,
+          {
+            publicKey: publicKey,
+            secretKey: new Uint8Array(32) // This is just a placeholder, the wallet will sign
+          },
           publicKey,
           publicKey,
-          publicKey,
-          decimals
+          tokenData.decimals
         )
       );
 
-      const signature = await sendTransaction(createMintTransaction, connection, {
+      const signature = await sendTransaction(transaction, connection, {
         signers: [mintKeypair]
       });
 
@@ -96,12 +105,6 @@ export const TokenSocialDetails = ({
 
       toast.success("Token created successfully!");
       console.log("Mint address:", mintKeypair.publicKey.toString());
-
-      // Here we would continue with:
-      // 1. Setting metadata (name, symbol, image)
-      // 2. Creating Raydium liquidity pool
-      // 3. Adding initial liquidity
-      // But these require additional setup and dependencies
 
     } catch (error) {
       console.error("Error creating token:", error);
