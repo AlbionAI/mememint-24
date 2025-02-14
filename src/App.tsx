@@ -1,5 +1,8 @@
 
 import { Buffer } from 'buffer';
+// Make Buffer available globally before any other imports
+window.Buffer = Buffer;
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -19,9 +22,6 @@ import { useMemo } from 'react';
 
 // Import wallet adapter CSS
 import '@solana/wallet-adapter-react-ui/styles.css';
-
-// Make Buffer available globally
-window.Buffer = Buffer;
 
 const queryClient = new QueryClient();
 

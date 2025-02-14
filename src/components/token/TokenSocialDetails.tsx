@@ -1,4 +1,3 @@
-
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { useEffect } from "react";
 import { Coins } from "lucide-react";
 import { useConnection, useWallet } from '@solana/wallet-adapter-react';
 import { createMint } from '@solana/spl-token';
-import { Keypair, SystemProgram, Transaction, clusterApiUrl, PublicKey } from '@solana/web3.js';
+import { Keypair, SystemProgram, Transaction, PublicKey, TransactionInstruction } from '@solana/web3.js';
 import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
@@ -84,8 +83,8 @@ export const TokenSocialDetails = ({
         })
       );
 
-      // Create mint instruction
-      const createMintInstr = await createMint(
+      // Create mint instruction and add it to the transaction
+      await createMint(
         connection,
         {
           publicKey: publicKey,
@@ -94,13 +93,12 @@ export const TokenSocialDetails = ({
         publicKey,
         publicKey,
         tokenData.decimals,
-        mintKeypair,
-        undefined,
-        new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-      );
-
-      // Add the create mint instruction
-      transaction.add(createMintInstr);
+        mintKeypair
+      ).then(instruction => {
+        if (instruction instanceof TransactionInstruction) {
+          transaction.add(instruction);
+        }
+      });
 
       const signature = await sendTransaction(transaction, connection, {
         signers: [mintKeypair]
