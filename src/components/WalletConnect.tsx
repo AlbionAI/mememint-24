@@ -9,10 +9,40 @@ export function WalletConnect() {
   const { connected, connecting, disconnect, publicKey, wallet } = useWallet();
   const [hasWallet, setHasWallet] = useState<boolean>(false);
 
+  // Check for Phantom
+  const getProvider = () => {
+    if ('phantom' in window) {
+      const provider = window.phantom?.solana;
+      
+      if (provider?.isPhantom) {
+        return provider;
+      }
+    }
+    
+    window.open('https://phantom.app/', '_blank');
+    return null;
+  };
+
+  // Handle direct Phantom connection
+  const connectPhantom = async () => {
+    try {
+      const provider = getProvider();
+      if (provider) {
+        const response = await provider.connect();
+        const publicKey = response.publicKey.toString();
+        console.log('Connected with Phantom:', publicKey);
+        toast.success('Phantom wallet connected successfully!');
+      }
+    } catch (err) {
+      console.error("Error connecting to Phantom:", err);
+      toast.error('Failed to connect Phantom wallet');
+    }
+  };
+
   // Check for wallet existence
   useEffect(() => {
     const checkWallet = () => {
-      const isPhantomAvailable = window?.solana?.isPhantom || false;
+      const isPhantomAvailable = window?.phantom?.solana?.isPhantom || false;
       const isSolflareAvailable = window?.solflare?.isSolflare || false;
       setHasWallet(isPhantomAvailable || isSolflareAvailable);
       
@@ -30,16 +60,15 @@ export function WalletConnect() {
 
     if (connecting) {
       toast.loading('Connecting wallet...', {
-        duration: 1000 // Show loading for 1 second
+        duration: 1000
       });
       
-      // Set a timeout to handle stalled connections
       timeoutId = setTimeout(() => {
         if (connecting && !connected) {
           toast.error('Connection attempt timed out. Please try again.');
           disconnect();
         }
-      }, 5000); // 5 second timeout
+      }, 5000);
     }
 
     if (connected && publicKey) {
@@ -47,7 +76,6 @@ export function WalletConnect() {
       console.log('Connected wallet address:', publicKey.toBase58());
     }
 
-    // Cleanup timeout on unmount or when connection status changes
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
@@ -59,6 +87,10 @@ export function WalletConnect() {
   const handleDisconnect = async () => {
     try {
       await disconnect();
+      const provider = getProvider();
+      if (provider) {
+        await provider.disconnect();
+      }
       toast.success('Wallet disconnected');
     } catch (error) {
       console.error('Failed to disconnect:', error);
@@ -95,9 +127,18 @@ export function WalletConnect() {
       </div>
       
       <div className="flex flex-col items-center gap-4">
-        <WalletMultiButton 
-          className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
-        />
+        {window.phantom?.solana?.isPhantom ? (
+          <button
+            onClick={connectPhantom}
+            className="px-8 py-2 font-bold text-white bg-purple-600 rounded hover:bg-purple-700 transition-colors"
+          >
+            Connect with Phantom
+          </button>
+        ) : (
+          <WalletMultiButton 
+            className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
+          />
+        )}
         
         {connected && (
           <button

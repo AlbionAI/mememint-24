@@ -10,4 +10,11 @@ interface Window {
   solflare?: {
     isSolflare?: boolean;
   }
+  phantom?: {
+    solana?: {
+      isPhantom?: boolean;
+      connect(): Promise<{ publicKey: any }>;
+      disconnect(): Promise<void>;
+    }
+  }
 }
