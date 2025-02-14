@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { toast } from "sonner";
 
 export function WalletConnect() {
-  const { connected, connecting, disconnect, publicKey, wallet, select } = useWallet();
+  const { connected, connecting, disconnect, publicKey, wallet } = useWallet();
   const [hasWallet, setHasWallet] = useState<boolean>(false);
 
   // Check for wallet existence
@@ -66,22 +66,6 @@ export function WalletConnect() {
     }
   };
 
-  // Handle manual connection attempt
-  const handleConnect = async () => {
-    try {
-      if (window?.solana?.isPhantom) {
-        select('Phantom');
-      } else if (window?.solflare?.isSolflare) {
-        select('Solflare');
-      } else {
-        toast.error('Please install Phantom or Solflare wallet');
-      }
-    } catch (error) {
-      console.error('Connection error:', error);
-      toast.error('Failed to connect wallet');
-    }
-  };
-
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
       <div className="text-center space-y-4">
@@ -113,7 +97,6 @@ export function WalletConnect() {
       <div className="flex flex-col items-center gap-4">
         <WalletMultiButton 
           className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
-          onClick={handleConnect}
         />
         
         {connected && (
