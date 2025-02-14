@@ -10,23 +10,11 @@ export const WalletConnect = () => {
   const { wallet, connect, connecting, connected } = useWallet();
   const { setVisible } = useWalletModal();
   
-  const handleConnect = async () => {
-    try {
-      if (!connected) {
-        setVisible(true);
-        if (wallet) await connect();
-      }
-    } catch (error) {
-      console.error('Failed to connect wallet:', error);
+  const handleConnect = () => {
+    if (!connected) {
+      setVisible(true);
     }
   };
-
-  // Attempt to connect when wallet is selected but not connected
-  useEffect(() => {
-    if (wallet && !connected && !connecting) {
-      connect().catch(console.error);
-    }
-  }, [wallet, connect, connected, connecting]);
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">

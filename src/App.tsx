@@ -20,20 +20,18 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 const queryClient = new QueryClient();
 
 const App = () => {
-  // Use devnet cluster for development
   const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
   
-  // Initialize all the wallets you want to support
   const wallets = useMemo(
     () => [
-      new PhantomWalletAdapter({ network: 'devnet' }),
+      new PhantomWalletAdapter(),
     ],
     []
   );
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect={true}>
+      <WalletProvider wallets={wallets}>
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
