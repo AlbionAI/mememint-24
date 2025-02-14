@@ -65,15 +65,18 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
     return data
       .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
       .slice(0, 10)
-      .map((token: any) => ({
-        name: token.name || token.tokenSymbol,
-        symbol: token.tokenSymbol,
-        price: formatCurrency(parseFloat(token.price)),
-        change: token.priceChange24h ? `${parseFloat(token.priceChange24h).toFixed(2)}%` : '0.00%',
-        isUp: parseFloat(token.priceChange24h || 0) >= 0,
-        volume: formatCurrency(parseFloat(token.volume24h)),
-        address: token.tokenMint || '',
-      }));
+      .map((token: any) => {
+        const priceChange = token.priceChange24h ? parseFloat(token.priceChange24h) : 0;
+        return {
+          name: token.name || token.tokenSymbol,
+          symbol: token.tokenSymbol,
+          price: formatCurrency(parseFloat(token.price)),
+          change: `${priceChange.toFixed(2)}% (1D)`,
+          isUp: priceChange >= 0,
+          volume: formatCurrency(parseFloat(token.volume24h)),
+          address: token.tokenMint || '',
+        };
+      });
   } catch (error) {
     console.error('Error fetching trending tokens:', error);
     return [];
