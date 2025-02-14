@@ -17,23 +17,32 @@ interface Token {
   logoURI?: string;
 }
 
-interface TokenListItem {
-  address: string;
-  chainId: number;
-  decimals: number;
-  logoURI?: string;
-  name: string;
-  symbol: string;
-  tags: string[];
-}
-
-interface RaydiumPair {
-  tokenMint: string;
-  name: string;
-  tokenSymbol: string;
-  price: string;
-  volume24h: string;
-  priceChange24hPercent: string;
+interface DexScreenerPair {
+  chainId: string;
+  dexId: string;
+  url: string;
+  pairAddress: string;
+  baseToken: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  quoteToken: {
+    symbol: string;
+  };
+  priceUsd: string;
+  priceChange: {
+    h24: number;
+  };
+  volume: {
+    h24: number;
+  };
+  txns: {
+    h24: {
+      buys: number;
+      sells: number;
+    };
+  };
 }
 
 const LoadingSkeleton = () => (
@@ -83,36 +92,34 @@ const formatCurrency = (value: number): string => {
 
 const fetchTrendingTokens = async (): Promise<Token[]> => {
   try {
-    const response = await fetch('https://api.raydium.io/v2/main/pairs');
-    const data = await response.json() as RaydiumPair[];
+    const response = await fetch('https://api.dexscreener.com/latest/dex/pairs/solana/raydium');
+    const data = await response.json();
     
-    // Fetch token list to get logos
-    const tokenListResponse = await fetch('https://api.raydium.io/v2/sdk/token/raydium.mainnet.json');
-    const tokenList = await tokenListResponse.json();
-    const tokenMap = new Map(
-      tokenList.tokens.map((t: TokenListItem) => [t.address, t])
-    );
-    
-    // Sort by volume and take top 10
-    return data
-      .sort((a, b) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
-      .slice(0, 10)
-      .map((token) => {
-        const priceNow = parseFloat(token.price);
-        const priceChange = parseFloat(token.priceChange24hPercent || '0');
+    if (!data.pairs || !Array.isArray(data.pairs)) {
+      throw new Error('Invalid response from DexScreener API');
+    }
 
-        // Find token logo
-        const tokenInfo = tokenMap.get(token.tokenMint) as TokenListItem | undefined;
-        
+    // Sort by volume and take top 10
+    return data.pairs
+      .sort((a: DexScreenerPair, b: DexScreenerPair) => 
+        (b.volume?.h24 || 0) - (a.volume?.h24 || 0)
+      )
+      .slice(0, 10)
+      .map((pair: DexScreenerPair) => {
+        const priceNow = parseFloat(pair.priceUsd || '0');
+        const priceChange = pair.priceChange?.h24 || 0;
+        const volumeUsd = pair.volume?.h24 || 0;
+
         return {
-          name: token.name || token.tokenSymbol,
-          symbol: token.tokenSymbol,
+          name: pair.baseToken.name,
+          symbol: pair.baseToken.symbol,
           price: formatCurrency(priceNow),
           change: `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}% (1D)`,
           isUp: priceChange >= 0,
-          volume: formatCurrency(parseFloat(token.volume24h)),
-          address: token.tokenMint || '',
-          logoURI: tokenInfo?.logoURI
+          volume: formatCurrency(volumeUsd),
+          address: pair.baseToken.address,
+          // DexScreener doesn't provide logos, so we'll use a placeholder
+          logoURI: `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${pair.baseToken.address}/logo.png`
         };
       });
   } catch (error) {
