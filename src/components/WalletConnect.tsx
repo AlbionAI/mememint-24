@@ -7,31 +7,23 @@ import { toast } from "sonner";
 
 export function WalletConnect() {
   const { connected, connecting, disconnect, publicKey, wallet } = useWallet();
-  const hasShownToast = useRef(false);
+  const initialRender = useRef(true);
 
   // Handle connection status changes
   useEffect(() => {
-    if (!hasShownToast.current) {
-      if (connecting) {
-        toast.loading('Connecting wallet...', {
-          duration: 1000
-        });
-      }
+    // Only show connecting toast on initial connection attempt
+    if (connecting && initialRender.current) {
+      toast.loading('Connecting wallet...', {
+        duration: 1000
+      });
+    }
 
-      if (connected && publicKey) {
-        toast.success('Wallet connected successfully!');
-        console.log('Connected wallet address:', publicKey.toBase58());
-        hasShownToast.current = true;
-      }
+    if (connected && publicKey && initialRender.current) {
+      toast.success('Wallet connected successfully!');
+      console.log('Connected wallet address:', publicKey.toBase58());
+      initialRender.current = false;
     }
   }, [connecting, connected, publicKey]);
-
-  // Reset toast flag when wallet is disconnected
-  useEffect(() => {
-    if (!connected) {
-      hasShownToast.current = false;
-    }
-  }, [connected]);
 
   return (
     <div className="space-y-6">
