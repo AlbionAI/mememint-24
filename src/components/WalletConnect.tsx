@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useEffect } from "react";
 
 export function WalletConnect() {
-  const { connected, connecting } = useWallet();
+  const { connected, connecting, wallet, connect, disconnect } = useWallet();
 
   useEffect(() => {
     if (connected) {
@@ -14,7 +14,26 @@ export function WalletConnect() {
     }
   }, [connected]);
 
-  console.log('Wallet state:', { connected, connecting });
+  useEffect(() => {
+    // Log wallet availability and connection attempts
+    console.log('Wallet state:', {
+      wallet: wallet?.adapter?.name,
+      connected,
+      connecting,
+      isPhantomAvailable: typeof window !== 'undefined' && window?.solana?.isPhantom
+    });
+  }, [wallet, connected, connecting]);
+
+  const handleWalletClick = async () => {
+    try {
+      if (!connected && wallet) {
+        await connect();
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+      toast.error('Failed to connect wallet. Please try again.');
+    }
+  };
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
@@ -28,7 +47,10 @@ export function WalletConnect() {
       </div>
       
       <div className="flex justify-center pt-4">
-        <WalletMultiButton className="wallet-adapter-button-trigger" />
+        <WalletMultiButton 
+          className="wallet-adapter-button-trigger"
+          onClick={handleWalletClick}
+        />
       </div>
     </Card>
   );
