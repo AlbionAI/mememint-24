@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -42,7 +41,7 @@ export const TokenForm = () => {
     <Card className="p-6 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <Rocket className="w-5 h-5 text-purple-400" />
+          <Rocket className="w-5 h-5 text-emerald-500" />
           <h3 className="text-lg font-semibold text-white">Token Configuration</h3>
         </div>
         <p className="text-sm text-slate-400">Configure your token parameters</p>
@@ -50,7 +49,7 @@ export const TokenForm = () => {
       
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-purple-400">
+          <div className="flex items-center gap-2 text-emerald-500">
             <Coins className="w-4 h-4" />
             <span className="text-sm font-medium">Basic Information</span>
           </div>
@@ -64,7 +63,7 @@ export const TokenForm = () => {
                 placeholder="Enter token name"
                 value={formData.name}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div className="space-y-2">
@@ -75,7 +74,7 @@ export const TokenForm = () => {
                 placeholder="Enter token symbol"
                 value={formData.symbol}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
@@ -90,7 +89,7 @@ export const TokenForm = () => {
                 placeholder="Enter total supply"
                 value={formData.supply}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div className="space-y-2">
@@ -103,14 +102,14 @@ export const TokenForm = () => {
                 placeholder="Enter initial price"
                 value={formData.initialPrice}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-purple-400">
+          <div className="flex items-center gap-2 text-emerald-500">
             <Settings className="w-4 h-4" />
             <span className="text-sm font-medium">Advanced Settings</span>
           </div>
@@ -125,7 +124,7 @@ export const TokenForm = () => {
                 placeholder="Enter tax fee"
                 value={formData.taxFee}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div className="space-y-2">
@@ -137,7 +136,7 @@ export const TokenForm = () => {
                 placeholder="Enter liquidity fee"
                 value={formData.liquidityFee}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
@@ -152,7 +151,7 @@ export const TokenForm = () => {
                 placeholder="Max tokens per tx"
                 value={formData.maxTxAmount}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div className="space-y-2">
@@ -164,7 +163,7 @@ export const TokenForm = () => {
                 placeholder="Max tokens per wallet"
                 value={formData.maxWalletAmount}
                 onChange={handleChange}
-                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
@@ -172,9 +171,9 @@ export const TokenForm = () => {
 
         <Button
           type="submit"
-          className="w-full bg-purple-600 hover:bg-purple-700 text-white transition-all duration-200"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white transition-all duration-200"
         >
-          <Shield className="w-4 h-4 mr-2" />
+          <Shield className="w-4 h-4 mr-2 text-white" />
           Deploy Token
         </Button>
       </form>
