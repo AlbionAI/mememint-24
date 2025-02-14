@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useEffect } from "react";
 
 interface TokenSocialDetailsProps {
   tokenData: {
@@ -26,6 +27,17 @@ export const TokenSocialDetails = ({
   onTokenDataChange,
   onBack
 }: TokenSocialDetailsProps) => {
+  // Enable all switches by default when component mounts
+  useEffect(() => {
+    onTokenDataChange({
+      ...tokenData,
+      modifyCreator: true,
+      revokeFreeze: true,
+      revokeMint: true,
+      revokeUpdate: true
+    });
+  }, []); // Empty dependency array means this runs once on mount
+
   return (
     <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
       <div className="space-y-6">
@@ -81,7 +93,7 @@ export const TokenSocialDetails = ({
             </div>
           </div>
           <p className="text-sm text-slate-400">
-            Change the information of the creator in the metadata. By default, it is CoinFast.
+            Change the information of the creator in the metadata. By default, it is MemeMint.
           </p>
           <div className="space-y-4">
             <div className="space-y-2">
