@@ -4,13 +4,29 @@ import { Button } from "@/components/ui/button";
 import { Wallet } from "lucide-react";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { useEffect } from "react";
 
 export const WalletConnect = () => {
+  const { wallet, connect, connecting, connected } = useWallet();
   const { setVisible } = useWalletModal();
   
-  const handleConnect = () => {
-    setVisible(true);
+  const handleConnect = async () => {
+    try {
+      if (!connected) {
+        setVisible(true);
+        if (wallet) await connect();
+      }
+    } catch (error) {
+      console.error('Failed to connect wallet:', error);
+    }
   };
+
+  // Attempt to connect when wallet is selected but not connected
+  useEffect(() => {
+    if (wallet && !connected && !connecting) {
+      connect().catch(console.error);
+    }
+  }, [wallet, connect, connected, connecting]);
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
@@ -27,9 +43,10 @@ export const WalletConnect = () => {
         <Button 
           className="px-8 py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium text-lg transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
           onClick={handleConnect}
+          disabled={connecting}
         >
           <Wallet className="w-5 h-5 mr-2" />
-          Connect Wallet
+          {connecting ? 'Connecting...' : 'Connect Wallet'}
         </Button>
       </div>
     </Card>
