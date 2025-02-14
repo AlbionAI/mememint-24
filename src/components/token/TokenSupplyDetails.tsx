@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface TokenSupplyDetailsProps {
   tokenData: {
@@ -21,6 +22,24 @@ export const TokenSupplyDetails = ({
   onBack,
   onNext
 }: TokenSupplyDetailsProps) => {
+  const handleNext = () => {
+    // Basic validation
+    if (!tokenData.decimals || !tokenData.totalSupply) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Convert to number for validation
+    const decimals = Number(tokenData.decimals);
+    if (isNaN(decimals) || decimals < 0 || decimals > 18) {
+      toast.error("Decimals must be between 0 and 18");
+      return;
+    }
+
+    // If validation passes, proceed to next step
+    onNext();
+  };
+
   return (
     <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
       <div className="space-y-6">
@@ -33,6 +52,8 @@ export const TokenSupplyDetails = ({
               className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
               value={tokenData.decimals}
               onChange={(e) => onTokenDataChange({ ...tokenData, decimals: e.target.value })}
+              min="0"
+              max="18"
             />
             <p className="text-xs text-slate-400">Enter a value between 0 and 18 decimals</p>
           </div>
@@ -71,7 +92,7 @@ export const TokenSupplyDetails = ({
         </Button>
         <Button 
           className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-          onClick={onNext}
+          onClick={handleNext}
         >
           Next
         </Button>
