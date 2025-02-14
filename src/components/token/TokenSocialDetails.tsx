@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useState } from "react";
 
 interface TokenSocialDetailsProps {
   tokenData: {
@@ -22,6 +23,11 @@ export const TokenSocialDetails = ({
   onTokenDataChange,
   onBack
 }: TokenSocialDetailsProps) => {
+  const [modifyCreator, setModifyCreator] = useState(false);
+  const [revokeFreeze, setRevokeFreeze] = useState(false);
+  const [revokeMint, setRevokeMint] = useState(false);
+  const [revokeUpdate, setRevokeUpdate] = useState(false);
+
   return (
     <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
       <div className="space-y-6">
@@ -29,7 +35,7 @@ export const TokenSocialDetails = ({
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-200">Website</label>
             <Input 
-              placeholder="https://yourmemecoin.fun"
+              placeholder="https://yourmemecoin.co"
               className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
               value={tokenData.website}
               onChange={(e) => onTokenDataChange({ ...tokenData, website: e.target.value })}
@@ -70,7 +76,8 @@ export const TokenSocialDetails = ({
             <div className="flex items-center gap-2">
               <span className="text-sm text-slate-400">(+0.1 SOL)</span>
               <Switch 
-                checked={true}
+                checked={modifyCreator}
+                onCheckedChange={setModifyCreator}
                 className="data-[state=checked]:bg-emerald-500"
               />
             </div>
@@ -82,19 +89,21 @@ export const TokenSocialDetails = ({
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Creator Name</label>
               <Input 
-                placeholder="CoinFast"
+                placeholder="MemeMint"
                 className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
                 value={tokenData.creatorName}
                 onChange={(e) => onTokenDataChange({ ...tokenData, creatorName: e.target.value })}
+                disabled={!modifyCreator}
               />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-200">Creator Website</label>
               <Input 
-                placeholder="https://coinfast.fun"
+                placeholder="https://mememint.co"
                 className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
                 value={tokenData.creatorWebsite}
                 onChange={(e) => onTokenDataChange({ ...tokenData, creatorWebsite: e.target.value })}
+                disabled={!modifyCreator}
               />
             </div>
           </div>
@@ -102,7 +111,7 @@ export const TokenSocialDetails = ({
           <div className="space-y-4">
             <h3 className="text-lg font-medium text-white">Revoke Authorities</h3>
             <p className="text-sm text-slate-400">
-              Solana Token has 3 authorities: Freeze Authority, Mint Authority, and Update Authority. Revoke them to attract more investors. We highly recommend enabling these 3 options for gaining more trust.
+              Enhance trust and decentralization by revoking token authorities. This prevents future changes to your token's supply, transfers, and metadata - making it more appealing to investors who value security and immutability.
             </p>
             <div className="grid grid-cols-3 gap-4">
               <Card className="p-4 bg-slate-900/50 border-slate-700">
@@ -115,7 +124,8 @@ export const TokenSocialDetails = ({
                     Freeze Authority allows you to freeze token accounts of your holders.
                   </p>
                   <Switch 
-                    checked={true}
+                    checked={revokeFreeze}
+                    onCheckedChange={setRevokeFreeze}
                     className="data-[state=checked]:bg-emerald-500"
                   />
                 </div>
@@ -130,7 +140,8 @@ export const TokenSocialDetails = ({
                     Mint Authority allows you to mint more supply of your token.
                   </p>
                   <Switch 
-                    checked={true}
+                    checked={revokeMint}
+                    onCheckedChange={setRevokeMint}
                     className="data-[state=checked]:bg-emerald-500"
                   />
                 </div>
@@ -145,7 +156,8 @@ export const TokenSocialDetails = ({
                     Update Authority allows you to update the token metadata.
                   </p>
                   <Switch 
-                    checked={true}
+                    checked={revokeUpdate}
+                    onCheckedChange={setRevokeUpdate}
                     className="data-[state=checked]:bg-emerald-500"
                   />
                 </div>
