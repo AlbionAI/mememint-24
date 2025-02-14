@@ -28,7 +28,7 @@ export const Navigation = () => {
                 variant={isActive('/') ? "default" : "ghost"}
                 className={isActive('/') ? "bg-emerald-600 hover:bg-emerald-700" : "text-slate-200 hover:text-white"}
               >
-                <Home className="h-4 w-4 mr-2 text-emerald-500" />
+                <Home className={`h-4 w-4 mr-2 ${isActive('/') ? 'text-white' : 'text-emerald-500'}`} />
                 Home
               </Button>
             </Link>
@@ -37,7 +37,7 @@ export const Navigation = () => {
                 variant={isActive('/promote') ? "default" : "ghost"}
                 className={isActive('/promote') ? "bg-emerald-600 hover:bg-emerald-700" : "text-slate-200 hover:text-white"}
               >
-                <Rocket className="h-4 w-4 mr-2 text-emerald-500" />
+                <Rocket className={`h-4 w-4 mr-2 ${isActive('/promote') ? 'text-white' : 'text-emerald-500'}`} />
                 Promote
               </Button>
             </Link>
