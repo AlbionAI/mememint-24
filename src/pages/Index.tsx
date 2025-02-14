@@ -16,7 +16,7 @@ const Index = () => {
           <BackgroundBeams className="opacity-40" />
         </div>
         <div className="relative z-10 pt-20">
-          <div className="container px-4 py-8 mx-auto">
+          <div className="container px-4 py-4 mx-auto">
             <div className="max-w-6xl mx-auto space-y-8">
               <div className="text-center space-y-4">
                 <h1 className="text-4xl font-bold text-white tracking-tight">Launch a Meme Coin At Lightning Speed</h1>
@@ -24,7 +24,7 @@ const Index = () => {
               </div>
               
               {!connected ? (
-                <div className="flex justify-center items-center py-12">
+                <div className="flex justify-center items-center py-8">
                   <WalletConnect />
                 </div>
               ) : (
