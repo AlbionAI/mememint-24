@@ -12,6 +12,9 @@ const Index = () => {
   return (
     <>
       <Navigation />
+      <div className="fixed top-0 right-0 left-0 z-50">
+        <LaunchStatus />
+      </div>
       <main className="min-h-screen bg-slate-900 relative">
         <div className="absolute inset-0 overflow-hidden">
           <BackgroundBeams className="opacity-40" />
@@ -27,14 +30,13 @@ const Index = () => {
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-6">
                   <WalletConnect />
+                </div>
+                <div className="space-y-6">
                   {connected && (
                     <div className="animate-fade-in">
                       <TokenConfig />
                     </div>
                   )}
-                </div>
-                <div className="space-y-6">
-                  <LaunchStatus />
                 </div>
               </div>
             </div>
