@@ -3,28 +3,12 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wallet } from "lucide-react";
 import { useWallet } from '@solana/wallet-adapter-react';
-import { useWalletModal } from '@solana/wallet-adapter-react-ui';
+import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import { toast } from "sonner";
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 
 export const WalletConnect = () => {
-  const { select, wallets, connected, connecting } = useWallet();
-  const { setVisible } = useWalletModal();
-  
-  const handleConnect = useCallback(async () => {
-    try {
-      const phantomWallet = wallets.find(wallet => wallet.adapter.name === 'Phantom');
-      if (phantomWallet) {
-        await select(phantomWallet.adapter.name);
-        setVisible(true);
-      } else {
-        toast.error('Phantom wallet not found. Please install it first.');
-      }
-    } catch (error) {
-      console.error('Wallet connection error:', error);
-      toast.error('Failed to connect wallet. Please try again.');
-    }
-  }, [select, wallets, setVisible]);
+  const { connected, connecting } = useWallet();
 
   useEffect(() => {
     if (connected) {
@@ -44,14 +28,12 @@ export const WalletConnect = () => {
       </div>
       
       <div className="flex justify-center pt-4">
-        <Button 
-          className="px-8 py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium text-lg transition-all duration-200 shadow-lg hover:shadow-emerald-500/25"
-          onClick={handleConnect}
-          disabled={connecting}
+        <WalletMultiButton 
+          className="px-8 py-6 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-medium text-lg transition-all duration-200 shadow-lg hover:shadow-emerald-500/25 rounded-md flex items-center"
         >
           <Wallet className="w-5 h-5 mr-2" />
           {connecting ? 'Connecting...' : 'Connect Wallet'}
-        </Button>
+        </WalletMultiButton>
       </div>
     </Card>
   );
