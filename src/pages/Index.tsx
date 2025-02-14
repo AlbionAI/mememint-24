@@ -26,10 +26,11 @@ const Index = () => {
               
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-6">
-                  {!connected ? (
-                    <WalletConnect />
-                  ) : (
-                    <TokenConfig />
+                  <WalletConnect />
+                  {connected && (
+                    <div className="animate-fade-in">
+                      <TokenConfig />
+                    </div>
                   )}
                 </div>
                 <div className="space-y-6">
