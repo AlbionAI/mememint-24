@@ -53,28 +53,28 @@ const Promote = () => {
 
               <div className="grid gap-8 md:grid-cols-2">
                 {promotionPlans.map((plan, index) => (
-                  <Card key={index} className="p-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-purple-500/50 transition-all duration-300">
+                  <Card key={index} className="p-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-[#9b87f5]/50 transition-all duration-300">
                     <div className="space-y-6">
                       <div className="flex items-center gap-3">
-                        <div className="h-12 w-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                          <plan.icon className="h-6 w-6 text-purple-400" />
+                        <div className="h-12 w-12 rounded-xl bg-[#9b87f5]/20 flex items-center justify-center">
+                          <plan.icon className="h-6 w-6 text-[#9b87f5]" />
                         </div>
                         <div>
                           <h3 className="text-xl font-semibold text-white">{plan.title}</h3>
-                          <p className="text-purple-400 font-medium">{plan.price}</p>
+                          <p className="text-[#9b87f5] font-medium">{plan.price}</p>
                         </div>
                       </div>
 
                       <ul className="space-y-3">
                         {plan.features.map((feature, fIndex) => (
                           <li key={fIndex} className="flex items-center gap-2 text-slate-300">
-                            <Zap className="h-4 w-4 text-purple-400" />
+                            <Zap className="h-4 w-4 text-[#9b87f5]" />
                             {feature}
                           </li>
                         ))}
                       </ul>
 
-                      <Button className="w-full bg-purple-600 hover:bg-purple-700 text-white">
+                      <Button className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white transition-colors">
                         Select Plan
                         <ChevronRight className="h-4 w-4 ml-2" />
                       </Button>
