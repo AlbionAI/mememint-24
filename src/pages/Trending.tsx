@@ -17,7 +17,12 @@ interface Token {
 }
 
 const LoadingSkeleton = () => (
-  <>
+  <div className="space-y-4">
+    <div className="text-center">
+      <h2 className="text-xl text-purple-400 animate-pulse">
+        Loading Trending Tokens...
+      </h2>
+    </div>
     {[...Array(10)].map((_, index) => (
       <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 animate-pulse">
         <div className="flex items-center justify-between">
@@ -43,7 +48,7 @@ const LoadingSkeleton = () => (
         </div>
       </Card>
     ))}
-  </>
+  </div>
 );
 
 const formatCurrency = (value: number): string => {
@@ -66,12 +71,12 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
       .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
       .slice(0, 10)
       .map((token: any) => {
-        const priceChange = token.priceChange24h ? parseFloat(token.priceChange24h) : 0;
+        const priceChange = parseFloat(token.priceChange24h || '0');
         return {
           name: token.name || token.tokenSymbol,
           symbol: token.tokenSymbol,
           price: formatCurrency(parseFloat(token.price)),
-          change: `${priceChange.toFixed(2)}% (1D)`,
+          change: `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}% (1D)`,
           isUp: priceChange >= 0,
           volume: formatCurrency(parseFloat(token.volume24h)),
           address: token.tokenMint || '',
@@ -90,7 +95,7 @@ const Trending = () => {
     queryFn: fetchTrendingTokens,
     refetchInterval: 30000, // Refresh every 30 seconds
     staleTime: 10000, // Consider data fresh for 10 seconds
-    gcTime: 60000, // Keep data in cache for 1 minute (formerly cacheTime)
+    gcTime: 60000, // Keep data in cache for 1 minute
   });
 
   const handleCopyAddress = (address: string) => {
