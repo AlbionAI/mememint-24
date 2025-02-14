@@ -18,7 +18,7 @@ export const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center h-16">
           <Link to="/" className="mr-8">
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-300 to-purple-500 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#D946EF] to-[#8B5CF6] bg-clip-text text-transparent">
               SolMint
             </span>
           </Link>
@@ -26,18 +26,18 @@ export const Navigation = () => {
             <Link to="/">
               <Button 
                 variant={isActive('/') ? "default" : "ghost"}
-                className={isActive('/') ? "bg-purple-600 hover:bg-purple-700" : "text-slate-200 hover:text-white"}
+                className={isActive('/') ? "bg-[#8B5CF6] hover:bg-[#7C3AED]" : "text-slate-200 hover:text-white"}
               >
-                <Home className="h-4 w-4 mr-2 text-purple-500" />
+                <Home className="h-4 w-4 mr-2 text-[#9b87f5]" />
                 Home
               </Button>
             </Link>
             <Link to="/promote">
               <Button 
                 variant={isActive('/promote') ? "default" : "ghost"}
-                className={isActive('/promote') ? "bg-purple-600 hover:bg-purple-700" : "text-slate-200 hover:text-white"}
+                className={isActive('/promote') ? "bg-[#8B5CF6] hover:bg-[#7C3AED]" : "text-slate-200 hover:text-white"}
               >
-                <Rocket className="h-4 w-4 mr-2 text-purple-500" />
+                <Rocket className="h-4 w-4 mr-2 text-[#9b87f5]" />
                 Promote
               </Button>
             </Link>
@@ -46,7 +46,7 @@ export const Navigation = () => {
               className="text-slate-200 hover:text-white"
               onClick={handleLiquidityClick}
             >
-              <Droplets className="h-4 w-4 mr-2 text-purple-500" />
+              <Droplets className="h-4 w-4 mr-2 text-[#9b87f5]" />
               Liquidity
             </Button>
           </div>
