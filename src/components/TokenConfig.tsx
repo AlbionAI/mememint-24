@@ -106,42 +106,48 @@ export const TokenConfig = () => {
       <div className="flex items-center justify-center space-x-4 md:space-x-8">
         <div className="flex items-center">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            step >= 1 ? 'bg-emerald-500' : 'bg-slate-700'
+            step >= 1 
+              ? 'bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-400/50' 
+              : 'bg-slate-800 border border-slate-700'
           }`}>
             {step > 1 ? (
-              <CheckCircle2 className="w-6 h-6 text-white" />
+              <CheckCircle2 className="w-6 h-6 text-white animate-pulse" />
             ) : (
               <span className="text-white font-medium">1</span>
             )}
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-white">Token Details</p>
+            <p className="text-sm font-medium text-slate-200">Token Details</p>
           </div>
         </div>
         
         <div className={`flex-1 h-0.5 max-w-[100px] ${
-          step > 1 ? 'bg-emerald-500' : 'bg-slate-700'
+          step > 1 
+            ? 'bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/20' 
+            : 'bg-slate-800'
         }`} />
         
         <div className="flex items-center">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-            step >= 2 ? 'bg-emerald-500' : 'bg-slate-700'
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+            step >= 2 
+              ? 'bg-gradient-to-r from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/50 ring-2 ring-emerald-400/50' 
+              : 'bg-slate-800 border border-slate-700'
           }`}>
             <span className="text-white font-medium">2</span>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-white">Configuration</p>
+            <p className="text-sm font-medium text-slate-200">Configuration</p>
           </div>
         </div>
         
-        <div className="flex-1 h-0.5 max-w-[100px] bg-slate-700" />
+        <div className="flex-1 h-0.5 max-w-[100px] bg-slate-800" />
         
         <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-700">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-800 border border-slate-700">
             <span className="text-white font-medium">3</span>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-white">Coming Soon</p>
+            <p className="text-sm font-medium text-slate-200">Coming Soon</p>
           </div>
         </div>
       </div>
