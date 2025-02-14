@@ -7,4 +7,7 @@ interface Window {
     connect: () => Promise<{ publicKey: string }>;
     disconnect: () => Promise<void>;
   }
+  solflare?: {
+    isSolflare?: boolean;
+  }
 }

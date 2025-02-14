@@ -10,7 +10,7 @@ import Liquidity from "./pages/Liquidity";
 import NotFound from "./pages/NotFound";
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom';
+import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { WalletAdapterNetwork } from '@solana/wallet-adapter-base';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
@@ -21,21 +21,29 @@ import '@solana/wallet-adapter-react-ui/styles.css';
 const queryClient = new QueryClient();
 
 function App() {
-  // You can use other networks like WalletAdapterNetwork.Mainnet for production
+  // Use Devnet for development, switch to Mainnet for production
   const network = WalletAdapterNetwork.Devnet;
   const endpoint = useMemo(() => clusterApiUrl(network), [network]);
   
-  // Only include wallets you want to support
+  // Configure supported wallet adapters
   const wallets = useMemo(
     () => [
       new PhantomWalletAdapter(),
+      new SolflareWalletAdapter(),
     ],
     []
   );
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect={true}>
+      <WalletProvider 
+        wallets={wallets} 
+        autoConnect={true}
+        onError={(error) => {
+          console.error('Wallet error:', error);
+          toast.error(error.message || 'Failed to connect wallet');
+        }}
+      >
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
