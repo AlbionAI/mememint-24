@@ -13,7 +13,7 @@ export function WalletConnect() {
   useEffect(() => {
     const checkWallet = () => {
       const isPhantomAvailable = window?.solana?.isPhantom || false;
-      const isSolflareAvailable = window?.solflare || false;
+      const isSolflareAvailable = window?.solflare?.isSolflare || false;
       setHasWallet(isPhantomAvailable || isSolflareAvailable);
       
       if (!isPhantomAvailable && !isSolflareAvailable) {
