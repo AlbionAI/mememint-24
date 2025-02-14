@@ -1,12 +1,9 @@
-
 import { TokenForm } from "@/components/TokenForm";
 import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
-
 const Index = () => {
-  return (
-    <>
+  return <>
       <Navigation />
       <main className="min-h-screen bg-slate-900 relative">
         <div className="absolute inset-0 overflow-hidden">
@@ -17,7 +14,7 @@ const Index = () => {
             <div className="max-w-6xl mx-auto space-y-8">
               <div className="text-center space-y-4">
                 <h1 className="text-4xl font-bold text-white tracking-tight">Launch Tokens</h1>
-                <p className="text-lg text-slate-400 max-w-2xl mx-auto">No coding required, launched in seconds.</p>
+                <p className="text-lg text-slate-400 max-w-2xl mx-auto">No coding required, launched in seconds the professional way.</p>
               </div>
               
               <div className="grid gap-8 md:grid-cols-2">
@@ -32,8 +29,6 @@ const Index = () => {
           </div>
         </div>
       </main>
-    </>
-  );
+    </>;
 };
-
 export default Index;
