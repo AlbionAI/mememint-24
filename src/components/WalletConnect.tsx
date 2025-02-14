@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { toast } from "sonner";
 
 export function WalletConnect() {
-  const { connected, connecting, disconnect, publicKey, wallet } = useWallet();
+  const { connected, connecting, disconnect, publicKey, wallet, select } = useWallet();
   const [hasWallet, setHasWallet] = useState<boolean>(false);
 
   // Check for wallet existence
@@ -24,17 +24,36 @@ export function WalletConnect() {
     checkWallet();
   }, []);
 
-  // Handle connection status changes
+  // Handle connection status changes with timeout
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     if (connecting) {
-      toast.loading('Connecting wallet...');
+      toast.loading('Connecting wallet...', {
+        duration: 1000 // Show loading for 1 second
+      });
+      
+      // Set a timeout to handle stalled connections
+      timeoutId = setTimeout(() => {
+        if (connecting && !connected) {
+          toast.error('Connection attempt timed out. Please try again.');
+          disconnect();
+        }
+      }, 5000); // 5 second timeout
     }
 
     if (connected && publicKey) {
       toast.success('Wallet connected successfully!');
       console.log('Connected wallet address:', publicKey.toBase58());
     }
-  }, [connecting, connected, publicKey]);
+
+    // Cleanup timeout on unmount or when connection status changes
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [connecting, connected, publicKey, disconnect]);
 
   // Handle wallet disconnection
   const handleDisconnect = async () => {
@@ -44,6 +63,22 @@ export function WalletConnect() {
     } catch (error) {
       console.error('Failed to disconnect:', error);
       toast.error('Failed to disconnect wallet');
+    }
+  };
+
+  // Handle manual connection attempt
+  const handleConnect = async () => {
+    try {
+      if (window?.solana?.isPhantom) {
+        select('Phantom');
+      } else if (window?.solflare?.isSolflare) {
+        select('Solflare');
+      } else {
+        toast.error('Please install Phantom or Solflare wallet');
+      }
+    } catch (error) {
+      console.error('Connection error:', error);
+      toast.error('Failed to connect wallet');
     }
   };
 
@@ -78,6 +113,7 @@ export function WalletConnect() {
       <div className="flex flex-col items-center gap-4">
         <WalletMultiButton 
           className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
+          onClick={handleConnect}
         />
         
         {connected && (
