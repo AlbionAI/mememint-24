@@ -17,6 +17,25 @@ interface Token {
   logoURI?: string;
 }
 
+interface TokenListItem {
+  address: string;
+  chainId: number;
+  decimals: number;
+  logoURI?: string;
+  name: string;
+  symbol: string;
+  tags: string[];
+}
+
+interface RaydiumPair {
+  tokenMint: string;
+  name: string;
+  tokenSymbol: string;
+  price: string;
+  volume24h: string;
+  priceChange24hPercent: string;
+}
+
 const LoadingSkeleton = () => (
   <div className="space-y-4">
     <div className="text-center">
@@ -65,23 +84,25 @@ const formatCurrency = (value: number): string => {
 const fetchTrendingTokens = async (): Promise<Token[]> => {
   try {
     const response = await fetch('https://api.raydium.io/v2/main/pairs');
-    const data = await response.json();
+    const data = await response.json() as RaydiumPair[];
     
     // Fetch token list to get logos
     const tokenListResponse = await fetch('https://api.raydium.io/v2/sdk/token/raydium.mainnet.json');
     const tokenList = await tokenListResponse.json();
-    const tokenMap = new Map(tokenList.tokens.map((t: any) => [t.address, t]));
+    const tokenMap = new Map(
+      tokenList.tokens.map((t: TokenListItem) => [t.address, t])
+    );
     
     // Sort by volume and take top 10
     return data
-      .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
+      .sort((a, b) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
       .slice(0, 10)
-      .map((token: any) => {
+      .map((token) => {
         const priceNow = parseFloat(token.price);
         const priceChange = parseFloat(token.priceChange24hPercent || '0');
 
         // Find token logo
-        const tokenInfo = tokenMap.get(token.tokenMint);
+        const tokenInfo = tokenMap.get(token.tokenMint) as TokenListItem | undefined;
         
         return {
           name: token.name || token.tokenSymbol,
@@ -91,7 +112,7 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
           isUp: priceChange >= 0,
           volume: formatCurrency(parseFloat(token.volume24h)),
           address: token.tokenMint || '',
-          logoURI: tokenInfo?.logoURI || undefined
+          logoURI: tokenInfo?.logoURI
         };
       });
   } catch (error) {
