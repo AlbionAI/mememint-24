@@ -7,18 +7,12 @@ import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { toast } from "sonner";
 
 export const WalletConnect = () => {
-  const { wallet, connect, connecting, connected, disconnect } = useWallet();
+  const { connected, connecting } = useWallet();
   const { setVisible } = useWalletModal();
   
-  const handleConnect = async () => {
+  const handleConnect = () => {
     try {
-      if (connecting) return;
-      
-      if (connected) {
-        await disconnect();
-      } else {
-        setVisible(true);
-      }
+      setVisible(true);
     } catch (error) {
       console.error('Wallet connection error:', error);
       toast.error('Failed to connect wallet. Please try again.');
@@ -43,7 +37,7 @@ export const WalletConnect = () => {
           disabled={connecting}
         >
           <Wallet className="w-5 h-5 mr-2" />
-          {connected ? 'Disconnect Wallet' : connecting ? 'Connecting...' : 'Connect Wallet'}
+          Connect Wallet
         </Button>
       </div>
     </Card>
