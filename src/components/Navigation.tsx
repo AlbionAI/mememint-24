@@ -1,7 +1,7 @@
 
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, TrendingUp, Rocket, Droplets } from "lucide-react";
+import { Home, Rocket, Droplets } from "lucide-react";
 
 export const Navigation = () => {
   const location = useLocation();
@@ -24,15 +24,6 @@ export const Navigation = () => {
             >
               <Home className="h-4 w-4 mr-2" />
               Home
-            </Button>
-          </Link>
-          <Link to="/trending">
-            <Button 
-              variant={isActive('/trending') ? "default" : "ghost"}
-              className={isActive('/trending') ? "bg-purple-600 hover:bg-purple-700" : "text-slate-400 hover:text-white"}
-            >
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Trending
             </Button>
           </Link>
           <Link to="/promote">
