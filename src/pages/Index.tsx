@@ -3,8 +3,12 @@ import { TokenConfig } from "@/components/TokenConfig";
 import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+import { WalletConnect } from "@/components/WalletConnect";
+import { useWallet } from '@solana/wallet-adapter-react';
 
 const Index = () => {
+  const { connected } = useWallet();
+
   return (
     <>
       <Navigation />
@@ -22,7 +26,11 @@ const Index = () => {
               
               <div className="grid gap-8 md:grid-cols-2">
                 <div className="space-y-6">
-                  <TokenConfig />
+                  {!connected ? (
+                    <WalletConnect />
+                  ) : (
+                    <TokenConfig />
+                  )}
                 </div>
                 <div className="space-y-6">
                   <LaunchStatus />
