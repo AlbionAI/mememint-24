@@ -21,10 +21,16 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['buffer'],
+    force: true, // Force dependency pre-bundling
     esbuildOptions: {
       define: {
         global: 'globalThis'
       }
     }
+  },
+  build: {
+    commonjsOptions: {
+      include: [/buffer/, /node_modules/],
+    },
   },
 });
