@@ -8,9 +8,9 @@ const Index = () => {
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-[#2A0134] relative pt-20">
+      <div className="min-h-screen bg-slate-900 relative pt-20">
         <Waves 
-          lineColor="rgba(255, 255, 255, 0.1)"
+          lineColor="rgba(42, 1, 52, 0.15)"
           backgroundColor="transparent"
           waveSpeedX={0.02}
           waveSpeedY={0.01}

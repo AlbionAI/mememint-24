@@ -23,16 +23,26 @@ interface WavesProps {
 }
 
 class Grad {
-  constructor(x, y, z) {
+  x: number
+  y: number
+  z: number
+
+  constructor(x: number, y: number, z: number) {
     this.x = x
     this.y = y
     this.z = z
   }
-  dot2(x, y) {
+  dot2(x: number, y: number) {
     return this.x * x + this.y * y
   }
 }
+
 class Noise {
+  private grad3: Grad[]
+  private p: number[]
+  private perm: number[]
+  private gradP: Grad[]
+
   constructor(seed = 0) {
     this.grad3 = [
       new Grad(1, 1, 0),
@@ -70,23 +80,16 @@ class Noise {
     this.gradP = new Array(512)
     this.seed(seed)
   }
-  seed(seed) {
-    if (seed > 0 && seed < 1) seed *= 65536
-    seed = Math.floor(seed)
-    if (seed < 256) seed |= seed << 8
-    for (let i = 0; i < 256; i++) {
-      let v = i & 1 ? this.p[i] ^ (seed & 255) : this.p[i] ^ ((seed >> 8) & 255)
-      this.perm[i] = this.perm[i + 256] = v
-      this.gradP[i] = this.gradP[i + 256] = this.grad3[v % 12]
-    }
-  }
-  fade(t) {
+
+  fade(t: number) {
     return t * t * t * (t * (t * 6 - 15) + 10)
   }
-  lerp(a, b, t) {
+
+  lerp(a: number, b: number, t: number) {
     return (1 - t) * a + t * b
   }
-  perlin2(x, y) {
+
+  perlin2(x: number, y: number) {
     let X = Math.floor(x),
       Y = Math.floor(y)
     x -= X
@@ -103,6 +106,17 @@ class Noise {
       this.lerp(n01, n11, u),
       this.fade(y),
     )
+  }
+
+  seed(seed: number) {
+    if (seed > 0 && seed < 1) seed *= 65536
+    seed = Math.floor(seed)
+    if (seed < 256) seed |= seed << 8
+    for (let i = 0; i < 256; i++) {
+      let v = i & 1 ? this.p[i] ^ (seed & 255) : this.p[i] ^ ((seed >> 8) & 255)
+      this.perm[i] = this.perm[i + 256] = v
+      this.gradP[i] = this.gradP[i + 256] = this.grad3[v % 12]
+    }
   }
 }
 
@@ -173,7 +187,7 @@ export function Waves({
       }
     }
 
-    function movePoints(time) {
+    function movePoints(time: number) {
       const lines = linesRef.current
       const mouse = mouseRef.current
       const noise = noiseRef.current
@@ -246,7 +260,7 @@ export function Waves({
       ctx.stroke()
     }
 
-    function tick(t) {
+    function tick(t: number) {
       const mouse = mouseRef.current
 
       mouse.sx += (mouse.x - mouse.sx) * 0.1
@@ -282,7 +296,7 @@ export function Waves({
       const touch = e.touches[0]
       updateMouse(touch.clientX, touch.clientY)
     }
-    function updateMouse(x, y) {
+    function updateMouse(x: number, y: number) {
       const mouse = mouseRef.current
       const b = boundingRef.current
       mouse.x = x - b.left
