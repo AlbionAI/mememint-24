@@ -1,13 +1,10 @@
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
 import { Coins } from "lucide-react";
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { createMint } from '@solana/spl-token';
-import { Keypair, SystemProgram, Transaction, PublicKey, TransactionInstruction } from '@solana/web3.js';
-import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
   tokenData: {
@@ -21,7 +18,6 @@ interface TokenSocialDetailsProps {
     revokeFreeze: boolean;
     revokeMint: boolean;
     revokeUpdate: boolean;
-    decimals: number;
   };
   onTokenDataChange: (data: any) => void;
   onBack: () => void;
@@ -51,68 +47,6 @@ export const TokenSocialDetails = ({
     if (tokenData.revokeMint) cost += 0.1;
     if (tokenData.revokeUpdate) cost += 0.1;
     return cost.toFixed(1);
-  };
-
-  const { connection } = useConnection();
-  const { publicKey, sendTransaction } = useWallet();
-
-  const createToken = async () => {
-    if (!publicKey) {
-      toast.error("Please connect your wallet");
-      return;
-    }
-
-    try {
-      toast.loading("Creating your token...");
-
-      // Create new mint
-      const mintKeypair = Keypair.generate();
-      
-      const lamports = await connection.getMinimumBalanceForRentExemption(82);
-      
-      const transaction = new Transaction();
-      
-      // Add account creation instruction
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: publicKey,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: 82,
-          lamports,
-          programId: new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
-        })
-      );
-
-      // Create mint instruction and add it to the transaction
-      await createMint(
-        connection,
-        {
-          publicKey: publicKey,
-          secretKey: new Uint8Array(32) // This is just a placeholder, the wallet will sign
-        },
-        publicKey,
-        publicKey,
-        tokenData.decimals,
-        mintKeypair
-      ).then(instruction => {
-        if (instruction instanceof TransactionInstruction) {
-          transaction.add(instruction);
-        }
-      });
-
-      const signature = await sendTransaction(transaction, connection, {
-        signers: [mintKeypair]
-      });
-
-      await connection.confirmTransaction(signature);
-
-      toast.success("Token created successfully!");
-      console.log("Mint address:", mintKeypair.publicKey.toString());
-
-    } catch (error) {
-      console.error("Error creating token:", error);
-      toast.error("Failed to create token");
-    }
   };
 
   return (
@@ -273,7 +207,6 @@ export const TokenSocialDetails = ({
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-            onClick={createToken}
           >
             Create Token
           </Button>
