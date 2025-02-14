@@ -1,4 +1,5 @@
 
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Share2, ExternalLink } from "lucide-react";
