@@ -1,13 +1,15 @@
+
 import { TokenForm } from "@/components/TokenForm";
 import { LaunchStatus } from "@/components/LaunchStatus";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
+
 const Index = () => {
   return <>
       <Navigation />
       <main className="min-h-screen bg-slate-900 relative">
         <div className="absolute inset-0 overflow-hidden">
-          <BackgroundBeams className="opacity-50" />
+          <BackgroundBeams className="opacity-40" />
         </div>
         <div className="relative z-10 pt-20">
           <div className="container px-4 py-8 mx-auto">
@@ -31,4 +33,5 @@ const Index = () => {
       </main>
     </>;
 };
+
 export default Index;
