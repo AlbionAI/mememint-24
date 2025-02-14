@@ -2,25 +2,69 @@
 import { Card } from "@/components/ui/card";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from "sonner";
 
 export function WalletConnect() {
   const { connected, connecting, disconnect, publicKey, wallet } = useWallet();
+  const [hasWallet, setHasWallet] = useState<boolean>(false);
 
-  // Handle connection status changes
+  // Check for wallet existence
   useEffect(() => {
+    const checkWallet = () => {
+      const isPhantomAvailable = window?.solana?.isPhantom || false;
+      const isSolflareAvailable = window?.solflare?.isSolflare || false;
+      setHasWallet(isPhantomAvailable || isSolflareAvailable);
+      
+      if (!isPhantomAvailable && !isSolflareAvailable) {
+        toast.error('No Solana wallet found! Please install Phantom or Solflare.');
+      }
+    };
+
+    checkWallet();
+  }, []);
+
+  // Handle connection status changes with timeout
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+
     if (connecting) {
       toast.loading('Connecting wallet...', {
-        duration: 1000
+        duration: 1000 // Show loading for 1 second
       });
+      
+      // Set a timeout to handle stalled connections
+      timeoutId = setTimeout(() => {
+        if (connecting && !connected) {
+          toast.error('Connection attempt timed out. Please try again.');
+          disconnect();
+        }
+      }, 5000); // 5 second timeout
     }
 
     if (connected && publicKey) {
       toast.success('Wallet connected successfully!');
       console.log('Connected wallet address:', publicKey.toBase58());
     }
-  }, [connecting, connected, publicKey]);
+
+    // Cleanup timeout on unmount or when connection status changes
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [connecting, connected, publicKey, disconnect]);
+
+  // Handle wallet disconnection
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+      toast.success('Wallet disconnected');
+    } catch (error) {
+      console.error('Failed to disconnect:', error);
+      toast.error('Failed to disconnect wallet');
+    }
+  };
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">
@@ -42,19 +86,22 @@ export function WalletConnect() {
           </div>
         ) : (
           <p className="text-slate-400">
-            Connect your Solana wallet to start creating your token
+            {hasWallet 
+              ? 'Connect your Solana wallet to start creating your token'
+              : 'Please install Phantom or Solflare wallet to continue'
+            }
           </p>
         )}
       </div>
       
       <div className="flex flex-col items-center gap-4">
         <WalletMultiButton 
-          className="wallet-adapter-button-trigger !bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 transition-all duration-200"
+          className="wallet-adapter-button-trigger bg-purple-600 hover:bg-purple-700"
         />
         
         {connected && (
           <button
-            onClick={() => disconnect()}
+            onClick={handleDisconnect}
             className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
           >
             Disconnect
