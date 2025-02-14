@@ -37,9 +37,9 @@ export function WalletConnect() {
           
           <div className="flex justify-center">
             <WalletMultiButton 
-              className="wallet-adapter-button-trigger !bg-[#1d4ed8] hover:!bg-[#1e40af] transition-colors duration-200"
+              className="wallet-adapter-button-trigger !bg-emerald-600 hover:!bg-emerald-700 transition-colors duration-200"
               style={{
-                backgroundColor: '#1d4ed8',
+                backgroundColor: '#059669',
               }}
             />
           </div>
