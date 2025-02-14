@@ -93,32 +93,40 @@ const formatCurrency = (value: number): string => {
 const fetchTrendingTokens = async (): Promise<Token[]> => {
   try {
     const response = await fetch('https://api.dexscreener.com/latest/dex/pairs/solana/raydium');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
-    
-    if (!data.pairs || !Array.isArray(data.pairs)) {
+    console.log('API Response:', data); // Debug log
+
+    if (!data || !data.pairs || !Array.isArray(data.pairs)) {
+      console.error('Invalid API response structure:', data);
       throw new Error('Invalid response from DexScreener API');
     }
 
     // Sort by volume and take top 10
     return data.pairs
+      .filter((pair: DexScreenerPair) => pair.baseToken && pair.baseToken.address) // Filter out invalid pairs
       .sort((a: DexScreenerPair, b: DexScreenerPair) => 
         (b.volume?.h24 || 0) - (a.volume?.h24 || 0)
       )
       .slice(0, 10)
       .map((pair: DexScreenerPair) => {
+        // Debug log for each pair
+        console.log('Processing pair:', pair);
+
         const priceNow = parseFloat(pair.priceUsd || '0');
         const priceChange = pair.priceChange?.h24 || 0;
         const volumeUsd = pair.volume?.h24 || 0;
 
         return {
-          name: pair.baseToken.name,
-          symbol: pair.baseToken.symbol,
+          name: pair.baseToken.name || 'Unknown Token',
+          symbol: pair.baseToken.symbol || 'UNKNOWN',
           price: formatCurrency(priceNow),
           change: `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}% (1D)`,
           isUp: priceChange >= 0,
           volume: formatCurrency(volumeUsd),
           address: pair.baseToken.address,
-          // DexScreener doesn't provide logos, so we'll use a placeholder
           logoURI: `https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/${pair.baseToken.address}/logo.png`
         };
       });
@@ -130,13 +138,23 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
 
 const Trending = () => {
   const { toast } = useToast();
-  const { data: trendingTokens = [], isLoading } = useQuery({
+  const { data: trendingTokens = [], isLoading, error } = useQuery({
     queryKey: ['trendingTokens'],
     queryFn: fetchTrendingTokens,
     refetchInterval: 30000,
     staleTime: 10000,
     gcTime: 60000,
   });
+
+  // Show error toast if there's an error
+  React.useEffect(() => {
+    if (error) {
+      toast({
+        description: "Failed to fetch trending tokens. Please try again later.",
+        duration: 3000,
+      });
+    }
+  }, [error, toast]);
 
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address);
@@ -168,6 +186,12 @@ const Trending = () => {
             <div className="grid gap-4">
               {isLoading ? (
                 <LoadingSkeleton />
+              ) : trendingTokens.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-lg text-slate-400">
+                    No trending tokens available at the moment. Please try again later.
+                  </p>
+                </div>
               ) : (
                 trendingTokens.map((token, index) => (
                   <Card key={index} className="p-4 bg-slate-800/50 backdrop-blur-sm border border-slate-700 hover:border-purple-500/50 transition-all duration-300">
