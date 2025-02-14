@@ -1,8 +1,4 @@
 
-import { Buffer } from 'buffer';
-// Make Buffer available globally before any other imports
-window.Buffer = Buffer;
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { toast } from "sonner";
