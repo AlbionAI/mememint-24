@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Share2, ExternalLink } from "lucide-react";
@@ -73,16 +72,15 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
       .sort((a: any, b: any) => parseFloat(b.volume24h) - parseFloat(a.volume24h))
       .slice(0, 10)
       .map((token: any) => {
-        // Check and log raw price change value
-        console.log('Raw price change for', token.name, ':', token.price24h);
-        
-        // Parse price change, ensuring we handle percentage properly
-        const priceChange = token.price24h ? parseFloat(token.price24h) * 100 : 0;
-        
+        // Calculate percentage change using current price and price24hAgo
+        const currentPrice = parseFloat(token.price);
+        const price24hAgo = currentPrice / (1 + (parseFloat(token.price24h) || 0));
+        const priceChange = ((currentPrice - price24hAgo) / price24hAgo) * 100;
+
         return {
           name: token.name || token.tokenSymbol,
           symbol: token.tokenSymbol,
-          price: formatCurrency(parseFloat(token.price)),
+          price: formatCurrency(currentPrice),
           change: `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}% (1D)`,
           isUp: priceChange >= 0,
           volume: formatCurrency(parseFloat(token.volume24h)),
