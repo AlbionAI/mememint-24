@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { TrendingUp, TrendingDown, Share2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Navigation } from "@/components/Navigation";
+import { useToast } from "@/hooks/use-toast";
 
 interface Token {
   name: string;
@@ -12,6 +13,7 @@ interface Token {
   change: string;
   isUp: boolean;
   volume: string;
+  address: string;
 }
 
 const LoadingSkeleton = () => (
@@ -44,6 +46,16 @@ const LoadingSkeleton = () => (
   </>
 );
 
+const formatCurrency = (value: number): string => {
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(2)}M`;
+  } else if (value >= 1000) {
+    return `$${(value / 1000).toFixed(2)}K`;
+  } else {
+    return `$${value.toFixed(2)}`;
+  }
+};
+
 const fetchTrendingTokens = async (): Promise<Token[]> => {
   try {
     const response = await fetch('https://api.raydium.io/v2/main/pairs');
@@ -56,10 +68,11 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
       .map((token: any) => ({
         name: token.name || token.tokenSymbol,
         symbol: token.tokenSymbol,
-        price: parseFloat(token.price).toFixed(6),
-        change: `${parseFloat(token.priceChange24h).toFixed(2)}%`,
-        isUp: parseFloat(token.priceChange24h) >= 0,
-        volume: `${(parseFloat(token.volume24h) / 1000).toFixed(1)}K`,
+        price: formatCurrency(parseFloat(token.price)),
+        change: token.priceChange24h ? `${parseFloat(token.priceChange24h).toFixed(2)}%` : '0.00%',
+        isUp: parseFloat(token.priceChange24h || 0) >= 0,
+        volume: formatCurrency(parseFloat(token.volume24h)),
+        address: token.tokenMint || '',
       }));
   } catch (error) {
     console.error('Error fetching trending tokens:', error);
@@ -68,6 +81,7 @@ const fetchTrendingTokens = async (): Promise<Token[]> => {
 };
 
 const Trending = () => {
+  const { toast } = useToast();
   const { data: trendingTokens = [], isLoading } = useQuery({
     queryKey: ['trendingTokens'],
     queryFn: fetchTrendingTokens,
@@ -75,6 +89,18 @@ const Trending = () => {
     staleTime: 10000, // Consider data fresh for 10 seconds
     gcTime: 60000, // Keep data in cache for 1 minute (formerly cacheTime)
   });
+
+  const handleCopyAddress = (address: string) => {
+    navigator.clipboard.writeText(address);
+    toast({
+      description: "Token address copied to clipboard",
+      duration: 2000,
+    });
+  };
+
+  const openRaydiumPage = (symbol: string) => {
+    window.open(`https://raydium.io/swap/?inputCurrency=sol&outputCurrency=${symbol}`, '_blank');
+  };
 
   return (
     <>
@@ -112,20 +138,30 @@ const Trending = () => {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-white font-medium">${token.price}</p>
+                        <p className="text-white font-medium">{token.price}</p>
                         <p className={`text-sm ${token.isUp ? 'text-green-400' : 'text-red-400'}`}>
                           {token.change}
                         </p>
                       </div>
                       <div className="text-right ml-8">
-                        <p className="text-white font-medium">${token.volume}</p>
+                        <p className="text-white font-medium">{token.volume}</p>
                         <p className="text-slate-400 text-sm">Volume</p>
                       </div>
                       <div className="flex gap-2 ml-8">
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-slate-400 hover:text-white"
+                          onClick={() => handleCopyAddress(token.address)}
+                        >
                           <Share2 className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="text-slate-400 hover:text-white">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="text-slate-400 hover:text-white"
+                          onClick={() => openRaydiumPage(token.symbol)}
+                        >
                           <ExternalLink className="h-4 w-4" />
                         </Button>
                       </div>
