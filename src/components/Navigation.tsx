@@ -14,11 +14,11 @@ export const Navigation = () => {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 bg-[#2A0134]/90 backdrop-blur-sm border-b border-[#2A0134] z-50">
+    <div className="fixed top-0 left-0 right-0 bg-slate-900/90 backdrop-blur-sm border-b border-slate-800 z-50">
       <div className="container mx-auto px-4">
         <div className="flex items-center h-16">
           <Link to="/" className="mr-8">
-            <span className="text-2xl font-bold text-white">
+            <span className="text-2xl font-bold bg-gradient-to-r from-[#D946EF] to-[#8B5CF6] bg-clip-text text-transparent">
               SolMint
             </span>
           </Link>
@@ -26,18 +26,18 @@ export const Navigation = () => {
             <Link to="/">
               <Button 
                 variant={isActive('/') ? "default" : "ghost"}
-                className={isActive('/') ? "bg-[#2A0134] hover:bg-[#2A0134]/80" : "text-slate-200 hover:text-white"}
+                className={isActive('/') ? "bg-[#8B5CF6] hover:bg-[#7C3AED]" : "text-slate-200 hover:text-white"}
               >
-                <Home className="h-4 w-4 mr-2 text-[#2A0134]" />
+                <Home className="h-4 w-4 mr-2 text-[#9b87f5]" />
                 Home
               </Button>
             </Link>
             <Link to="/promote">
               <Button 
                 variant={isActive('/promote') ? "default" : "ghost"}
-                className={isActive('/promote') ? "bg-[#2A0134] hover:bg-[#2A0134]/80" : "text-slate-200 hover:text-white"}
+                className={isActive('/promote') ? "bg-[#8B5CF6] hover:bg-[#7C3AED]" : "text-slate-200 hover:text-white"}
               >
-                <Rocket className="h-4 w-4 mr-2 text-[#2A0134]" />
+                <Rocket className="h-4 w-4 mr-2 text-[#9b87f5]" />
                 Promote
               </Button>
             </Link>
@@ -46,7 +46,7 @@ export const Navigation = () => {
               className="text-slate-200 hover:text-white"
               onClick={handleLiquidityClick}
             >
-              <Droplets className="h-4 w-4 mr-2 text-[#2A0134]" />
+              <Droplets className="h-4 w-4 mr-2 text-[#9b87f5]" />
               Liquidity
             </Button>
           </div>
