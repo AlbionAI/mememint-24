@@ -136,7 +136,7 @@ export const TokenConfig = () => {
             <span className="text-white font-medium">2</span>
           </div>
           <div className="ml-3">
-            <p className="text-sm font-medium text-slate-200">Configuration</p>
+            <p className="text-sm font-medium text-slate-200">Total Supply</p>
           </div>
         </div>
         
@@ -302,7 +302,7 @@ export const TokenConfig = () => {
             <Button 
               className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
             >
-              Create Token
+              Next Step
             </Button>
           </div>
         </Card>
