@@ -16,12 +16,12 @@ export default defineConfig({
     },
   },
   define: {
-    global: 'globalThis',
+    global: {},
     'process.env': {},
   },
   optimizeDeps: {
     include: ['buffer'],
-    force: true, // Force dependency pre-bundling
+    force: true,
     esbuildOptions: {
       define: {
         global: 'globalThis'
@@ -29,8 +29,12 @@ export default defineConfig({
     }
   },
   build: {
+    rollupOptions: {
+      external: ['buffer'],
+    },
     commonjsOptions: {
       include: [/buffer/, /node_modules/],
+      transformMixedEsModules: true
     },
   },
 });

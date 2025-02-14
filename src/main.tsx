@@ -5,7 +5,6 @@ import { Buffer } from 'buffer';
 // Ensure Buffer is available in all possible scopes
 globalThis.Buffer = Buffer;
 window.Buffer = Buffer;
-global.Buffer = Buffer;
 
 // Now import the rest of the application
 import { createRoot } from 'react-dom/client'
