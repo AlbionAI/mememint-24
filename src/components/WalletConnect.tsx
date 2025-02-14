@@ -4,15 +4,24 @@ import { Button } from "@/components/ui/button";
 import { Wallet } from "lucide-react";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
-import { useEffect } from "react";
+import { toast } from "sonner";
 
 export const WalletConnect = () => {
-  const { wallet, connect, connecting, connected } = useWallet();
+  const { wallet, connect, connecting, connected, disconnect } = useWallet();
   const { setVisible } = useWalletModal();
   
-  const handleConnect = () => {
-    if (!connected) {
-      setVisible(true);
+  const handleConnect = async () => {
+    try {
+      if (connecting) return;
+      
+      if (connected) {
+        await disconnect();
+      } else {
+        setVisible(true);
+      }
+    } catch (error) {
+      console.error('Wallet connection error:', error);
+      toast.error('Failed to connect wallet. Please try again.');
     }
   };
 
@@ -34,7 +43,7 @@ export const WalletConnect = () => {
           disabled={connecting}
         >
           <Wallet className="w-5 h-5 mr-2" />
-          {connecting ? 'Connecting...' : 'Connect Wallet'}
+          {connected ? 'Disconnect Wallet' : connecting ? 'Connecting...' : 'Connect Wallet'}
         </Button>
       </div>
     </Card>
