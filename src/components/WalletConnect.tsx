@@ -5,21 +5,32 @@ import { Wallet } from "lucide-react";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { toast } from "sonner";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 
 export const WalletConnect = () => {
-  const { connected, connecting } = useWallet();
+  const { select, wallets, connected, connecting } = useWallet();
   const { setVisible } = useWalletModal();
   
-  const handleConnect = useCallback(() => {
-    console.log('Opening wallet modal...');
+  const handleConnect = useCallback(async () => {
     try {
-      setVisible(true);
+      const phantomWallet = wallets.find(wallet => wallet.adapter.name === 'Phantom');
+      if (phantomWallet) {
+        await select(phantomWallet.adapter.name);
+        setVisible(true);
+      } else {
+        toast.error('Phantom wallet not found. Please install it first.');
+      }
     } catch (error) {
       console.error('Wallet connection error:', error);
       toast.error('Failed to connect wallet. Please try again.');
     }
-  }, [setVisible]);
+  }, [select, wallets, setVisible]);
+
+  useEffect(() => {
+    if (connected) {
+      toast.success('Wallet connected successfully!');
+    }
+  }, [connected]);
 
   return (
     <Card className="p-12 space-y-6 w-full max-w-xl mx-auto bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl hover:shadow-slate-700/30 transition-all duration-300">

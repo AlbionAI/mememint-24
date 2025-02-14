@@ -10,7 +10,7 @@ import Liquidity from "./pages/Liquidity";
 import NotFound from "./pages/NotFound";
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react';
 import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
-import { PhantomWalletAdapter, SolflareWalletAdapter } from '@solana/wallet-adapter-wallets';
+import { PhantomWalletAdapter } from '@solana/wallet-adapter-wallets';
 import { clusterApiUrl } from '@solana/web3.js';
 import { useMemo } from 'react';
 
@@ -22,17 +22,15 @@ const queryClient = new QueryClient();
 const App = () => {
   const endpoint = useMemo(() => clusterApiUrl('devnet'), []);
 
+  // Initialize only Phantom wallet adapter
   const wallets = useMemo(
-    () => [
-      new PhantomWalletAdapter(),
-      new SolflareWalletAdapter(),
-    ],
+    () => [new PhantomWalletAdapter()],
     []
   );
 
   return (
     <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect={false}>
+      <WalletProvider wallets={wallets}>
         <WalletModalProvider>
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
