@@ -35,7 +35,7 @@ const Promote = () => {
   return (
     <>
       <Navigation />
-      <div className="min-h-screen bg-[#0B1120] relative">
+      <main className="min-h-screen bg-[#0B1120] relative">
         <div className="absolute inset-0 overflow-hidden">
           <BackgroundBeams className="opacity-50" />
         </div>
@@ -53,29 +53,29 @@ const Promote = () => {
 
               <div className="grid gap-8 md:grid-cols-2">
                 {promotionPlans.map((plan, index) => (
-                  <Card key={index} className="p-6 bg-[#0F172A]/50 backdrop-blur-sm border border-slate-800 hover:border-[#9D8DF4]/50 transition-all duration-300">
+                  <Card key={index} className="p-6 bg-[#0F172A]/50 backdrop-blur-sm border border-slate-800 hover:border-emerald-500/50 transition-all duration-300">
                     <div className="space-y-6">
                       <div className="flex items-center gap-3">
                         <div className="h-12 w-12 rounded-xl bg-[#151F38] flex items-center justify-center">
-                          <plan.icon className="h-6 w-6 text-[#9D8DF4]" />
+                          <plan.icon className="h-6 w-6 text-emerald-500" />
                         </div>
                         <div>
                           <h3 className="text-xl font-semibold text-white">{plan.title}</h3>
-                          <p className="text-[#9D8DF4] font-medium">{plan.price}</p>
+                          <p className="text-emerald-500 font-medium">{plan.price}</p>
                         </div>
                       </div>
 
                       <ul className="space-y-3">
                         {plan.features.map((feature, fIndex) => (
                           <li key={fIndex} className="flex items-center gap-2 text-slate-300">
-                            <Zap className="h-4 w-4 text-[#9D8DF4]" />
+                            <Zap className="h-4 w-4 text-emerald-500" />
                             {feature}
                           </li>
                         ))}
                       </ul>
 
                       <Button 
-                        className="w-full bg-[#9D8DF4] hover:bg-[#8B7BE3] text-white font-medium transition-colors"
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
                       >
                         Select Plan
                         <ChevronRight className="h-4 w-4 ml-2" />
@@ -114,7 +114,7 @@ const Promote = () => {
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </>
   );
 };
