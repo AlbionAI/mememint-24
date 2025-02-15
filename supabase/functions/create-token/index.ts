@@ -135,12 +135,25 @@ serve(async (req) => {
     }
 
     // Calculate initial supply with decimals
-    const cleanSupply = initialSupply.replace(/,/g, ''); // Remove commas
-    const decimalPower = "1" + "0".repeat(Number(decimals));
-    const finalAmount = Number(cleanSupply) * Number(decimalPower);
-    console.log('Initial supply:', cleanSupply);
-    console.log('Decimal power:', decimalPower);
+    console.log('Raw initial supply:', initialSupply);
+    const supplyString = String(initialSupply); // Convert to string first
+    const cleanSupply = supplyString.replace(/,/g, ''); // Remove commas
+    const numericSupply = parseInt(cleanSupply, 10); // Convert to number safely
+    
+    if (isNaN(numericSupply)) {
+      throw new Error('Invalid initial supply amount');
+    }
+    
+    const decimalMultiplier = Math.pow(10, Number(decimals));
+    const finalAmount = numericSupply * decimalMultiplier;
+    
+    console.log('Initial supply:', numericSupply);
+    console.log('Decimal multiplier:', decimalMultiplier);
     console.log('Final amount:', finalAmount);
+
+    if (isNaN(finalAmount)) {
+      throw new Error('Error calculating final token amount');
+    }
 
     // 1. Fee payment transaction
     const feeTransaction = new Transaction();
