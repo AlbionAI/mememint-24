@@ -5,9 +5,6 @@ import { createMint, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRe
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base58encode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 
-// Add Buffer polyfill for Deno environment
-const Buffer = require('buffer').Buffer;
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
