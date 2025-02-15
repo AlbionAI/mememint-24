@@ -19,7 +19,7 @@ const Index = () => {
               {!connected ? <>
                   <div className="text-center space-y-4">
                     <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">Launch a Meme Coin At Lightning Speed!</h1>
-                    <p className="text-lg text-slate-400 max-w-2xl mx-auto">No coding required, launched in seconds the professional way</p>
+                    <p className="text-lg text-slate-400 max-w-2xl mx-auto">No coding required, launched in seconds the professional way.</p>
                   </div>
                   <div className="flex justify-center items-center py-12">
                     <WalletConnect />
