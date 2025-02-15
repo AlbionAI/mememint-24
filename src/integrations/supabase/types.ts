@@ -9,7 +9,83 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      raydium_listings: {
+        Row: {
+          created_at: string | null
+          id: string
+          mint_address: string
+          owner_address: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mint_address: string
+          owner_address: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mint_address?: string
+          owner_address?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raydium_listings_mint_address_fkey"
+            columns: ["mint_address"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["mint_address"]
+          },
+        ]
+      }
+      tokens: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          discord: string | null
+          id: string
+          logo_url: string | null
+          mint_address: string
+          owner_address: string
+          telegram: string | null
+          token_name: string
+          token_symbol: string
+          twitter: string | null
+          website: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          discord?: string | null
+          id?: string
+          logo_url?: string | null
+          mint_address: string
+          owner_address: string
+          telegram?: string | null
+          token_name: string
+          token_symbol: string
+          twitter?: string | null
+          website?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          discord?: string | null
+          id?: string
+          logo_url?: string | null
+          mint_address?: string
+          owner_address?: string
+          telegram?: string | null
+          token_name?: string
+          token_symbol?: string
+          twitter?: string | null
+          website?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
