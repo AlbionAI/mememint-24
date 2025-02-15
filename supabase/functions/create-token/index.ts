@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Connection, Keypair, PublicKey, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo } from 'https://esm.sh/@solana/spl-token'
+import { decode } from "https://deno.land/std@0.177.0/encoding/base58.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -91,15 +92,8 @@ serve(async (req) => {
     console.log('Creating keypair from secret key...');
     let payer;
     try {
-      // Try to parse the key directly first
-      let keyArray;
-      try {
-        keyArray = new Uint8Array(secretKey.split(',').map(Number));
-      } catch (parseError) {
-        // If direct parsing fails, try JSON parse
-        keyArray = new Uint8Array(JSON.parse(secretKey));
-      }
-      
+      // Convert base58 private key to Uint8Array
+      const keyArray = decode(secretKey);
       payer = Keypair.fromSecretKey(keyArray);
       console.log('Payer public key:', payer.publicKey.toString());
     } catch (keypairError) {
@@ -107,7 +101,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Invalid SOLANA_PRIVATE_KEY format. Please check the key format.' 
+          error: 'Invalid SOLANA_PRIVATE_KEY format. The key should be in base58 format.' 
         }),
         { 
           status: 500,
