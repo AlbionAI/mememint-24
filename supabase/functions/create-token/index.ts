@@ -135,9 +135,12 @@ serve(async (req) => {
     }
 
     // Calculate initial supply with decimals
-    const suppliedAmount = Number(initialSupply.replace(/,/g, '')); // Remove commas
-    const calculatedAmount = suppliedAmount * Math.pow(10, Number(decimals));
-    console.log('Calculated token amount:', calculatedAmount);
+    const cleanSupply = initialSupply.replace(/,/g, ''); // Remove commas
+    const decimalPower = "1" + "0".repeat(Number(decimals));
+    const finalAmount = Number(cleanSupply) * Number(decimalPower);
+    console.log('Initial supply:', cleanSupply);
+    console.log('Decimal power:', decimalPower);
+    console.log('Final amount:', finalAmount);
 
     // 1. Fee payment transaction
     const feeTransaction = new Transaction();
@@ -168,7 +171,7 @@ serve(async (req) => {
       createInitializeMintInstruction(
         mintKeypair.publicKey,
         Number(decimals),
-        tokenCreatorKeypair.publicKey, // Set token creator as initial authority
+        tokenCreatorKeypair.publicKey,
         modifyCreator ? owner : null,
         TOKEN_PROGRAM_ID
       )
@@ -195,13 +198,13 @@ serve(async (req) => {
       )
     );
     
-    // Mint tokens
+    // Mint tokens using the calculated final amount
     tokenTransaction.add(
       mintTo({
         mint: mintKeypair.publicKey,
         destination: associatedTokenAddress[0],
         authority: tokenCreatorKeypair.publicKey,
-        amount: calculatedAmount
+        amount: finalAmount
       })
     );
 
