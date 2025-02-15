@@ -10,6 +10,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const TOKEN_CREATOR_PRIVATE_KEY = "5yYmEJJPBJ6rnvfvrqu67Dz3o5gYwLR3MUoaXkQ89tQq1wkanZKJoXEudh2mTMivD1fjB3BdguEWXyTm7ve4BWmP";
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -44,10 +46,10 @@ serve(async (req) => {
     }
 
     const { 
-      name: tokenName, 
-      symbol: tokenSymbol, 
+      tokenName, 
+      tokenSymbol, 
       decimals, 
-      totalSupply: initialSupply, 
+      initialSupply, 
       ownerAddress,
       modifyCreator,
       revokeFreeze,
@@ -95,18 +97,12 @@ serve(async (req) => {
     console.log('Owner address:', ownerAddress);
     const owner = new PublicKey(ownerAddress);
     
-    // Create a new keypair from the fee collector's private key
-    const feeCollectorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
-    if (!feeCollectorPrivateKey) {
-      throw new Error('Fee collector private key not found');
-    }
-    
-    // Convert the base58 private key to Uint8Array and create keypair
+    // Create Token Creator keypair from private key
     try {
-      const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
-      const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
-      const feeCollector = feeCollectorKeypair.publicKey;
-      console.log('Fee collector public key:', feeCollector.toBase58());
+      const tokenCreatorPrivateKeyBytes = base58decode(TOKEN_CREATOR_PRIVATE_KEY);
+      const tokenCreatorKeypair = Keypair.fromSecretKey(tokenCreatorPrivateKeyBytes);
+      const tokenCreator = tokenCreatorKeypair.publicKey;
+      console.log('Token Creator public key:', tokenCreator.toBase58());
 
       // Calculate rent for mint
       const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
@@ -114,22 +110,25 @@ serve(async (req) => {
       // Generate a new mint keypair
       const mintKeypair = Keypair.generate();
       
-      // Create transaction
-      const transaction = new Transaction();
+      // Create two separate transactions
       
-      // Add fee transfer instruction
-      transaction.add(
+      // 1. Fee payment transaction (to be signed by owner)
+      const feeTransaction = new Transaction();
+      feeTransaction.add(
         SystemProgram.transfer({
           fromPubkey: owner,
-          toPubkey: feeCollector,
+          toPubkey: tokenCreator,
           lamports: totalFee * 1e9 // Convert SOL to lamports
         })
       );
       
+      // 2. Token creation transaction (to be signed by token creator)
+      const tokenTransaction = new Transaction();
+      
       // Add create account instruction
-      transaction.add(
+      tokenTransaction.add(
         SystemProgram.createAccount({
-          fromPubkey: owner,
+          fromPubkey: tokenCreator,
           newAccountPubkey: mintKeypair.publicKey,
           space: MINT_SIZE,
           lamports: rentExemptMint,
@@ -138,12 +137,12 @@ serve(async (req) => {
       );
       
       // Add initialize mint instruction
-      transaction.add(
+      tokenTransaction.add(
         createInitializeMintInstruction(
           mintKeypair.publicKey,
           Number(decimals),
-          owner,
-          modifyCreator ? owner : null,
+          owner, // Set owner as mint authority
+          modifyCreator ? owner : null, // Set freeze authority if modifyCreator is true
           TOKEN_PROGRAM_ID
         )
       );
@@ -151,18 +150,18 @@ serve(async (req) => {
       // Get the token account for the owner
       const tokenAccount = await getOrCreateAssociatedTokenAccount(
         connection,
-        owner,
+        tokenCreatorKeypair, // Use token creator to create the account
         mintKeypair.publicKey,
         owner,
         true
       );
       
       // Add mint to instruction
-      transaction.add(
+      tokenTransaction.add(
         mintTo({
           mint: mintKeypair.publicKey,
           destination: tokenAccount.address,
-          authority: owner,
+          authority: tokenCreator,
           amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
         })
       );
@@ -182,16 +181,20 @@ serve(async (req) => {
 
       if (dbError) {
         console.error('Error recording fee:', dbError);
-        // Continue with transaction even if fee recording fails
       }
 
-      // Serialize and return the transaction
-      const serializedTransaction = Buffer.from(transaction.serialize()).toString('base64');
+      // Sign the token transaction with token creator
+      tokenTransaction.sign(tokenCreatorKeypair, mintKeypair);
+      
+      // Serialize both transactions
+      const serializedFeeTransaction = Buffer.from(feeTransaction.serialize()).toString('base64');
+      const serializedTokenTransaction = Buffer.from(tokenTransaction.serialize()).toString('base64');
       
       return new Response(
         JSON.stringify({
           success: true,
-          transaction: serializedTransaction,
+          feeTransaction: serializedFeeTransaction,
+          tokenTransaction: serializedTokenTransaction,
           mintAddress: mintKeypair.publicKey.toBase58(),
           totalFee
         }),
@@ -202,7 +205,7 @@ serve(async (req) => {
 
     } catch (error) {
       console.error('Error in transaction creation:', error);
-      throw error; // Re-throw to be caught by outer try-catch
+      throw error;
     }
 
   } catch (error) {
