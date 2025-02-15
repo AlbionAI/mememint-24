@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
@@ -107,26 +106,49 @@ serve(async (req) => {
     console.log('Owner address:', ownerAddress);
     const owner = new PublicKey(ownerAddress);
 
-    // Get both private keys
+    // Get and validate private keys
     const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
     const feeCollectorPrivateKey = Deno.env.get('FEE_COLLECTOR_PRIVATE_KEY');
     
-    if (!tokenCreatorPrivateKey || !feeCollectorPrivateKey) {
-      throw new Error('Required private keys not found in environment');
+    console.log('Checking private keys...');
+    if (!tokenCreatorPrivateKey) {
+      throw new Error('SOLANA_PRIVATE_KEY is not set in environment');
     }
-    
-    // Create keypairs for both wallets
-    const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
-    const tokenCreatorKeypair = Keypair.fromSecretKey(tokenCreatorPrivateKeyBytes);
-    
-    const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
-    const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
-    
-    console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
-    console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
+    if (!feeCollectorPrivateKey) {
+      throw new Error('FEE_COLLECTOR_PRIVATE_KEY is not set in environment');
+    }
+
+    let tokenCreatorKeypair: Keypair;
+    try {
+      const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
+      if (tokenCreatorPrivateKeyBytes.length !== 64) {
+        throw new Error('Invalid private key length');
+      }
+      tokenCreatorKeypair = Keypair.fromSecretKey(new Uint8Array(tokenCreatorPrivateKeyBytes));
+      console.log('Successfully created token creator keypair');
+      console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
+    } catch (error) {
+      console.error('Error creating token creator keypair:', error);
+      throw new Error('Failed to create token creator keypair: Invalid private key format');
+    }
+
+    let feeCollectorKeypair: Keypair;
+    try {
+      const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
+      if (feeCollectorPrivateKeyBytes.length !== 64) {
+        throw new Error('Invalid fee collector private key length');
+      }
+      feeCollectorKeypair = Keypair.fromSecretKey(new Uint8Array(feeCollectorPrivateKeyBytes));
+      console.log('Successfully created fee collector keypair');
+      console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
+    } catch (error) {
+      console.error('Error creating fee collector keypair:', error);
+      throw new Error('Failed to create fee collector keypair: Invalid private key format');
+    }
 
     // Generate mint keypair early
     const mintKeypair = Keypair.generate();
+    console.log('Generated mint keypair');
     console.log('Mint address:', mintKeypair.publicKey.toBase58());
 
     // Calculate rent and minimum balances
@@ -277,7 +299,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message 
+        error: error.message,
+        details: error.stack
       }),
       { 
         status: 500,
