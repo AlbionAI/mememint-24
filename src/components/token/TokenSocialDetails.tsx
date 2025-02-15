@@ -21,12 +21,16 @@ interface TokenSocialDetailsProps {
   };
   onTokenDataChange: (data: any) => void;
   onBack: () => void;
+  onCreateToken: () => Promise<void>;
+  isCreating: boolean;
 }
 
 export const TokenSocialDetails = ({
   tokenData,
   onTokenDataChange,
-  onBack
+  onBack,
+  onCreateToken,
+  isCreating
 }: TokenSocialDetailsProps) => {
   // Enable all switches by default when component mounts
   useEffect(() => {
@@ -202,13 +206,23 @@ export const TokenSocialDetails = ({
             variant="outline"
             className="px-8"
             onClick={onBack}
+            disabled={isCreating}
           >
             Back
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+            onClick={onCreateToken}
+            disabled={isCreating}
           >
-            Create Token
+            {isCreating ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                Creating Token...
+              </div>
+            ) : (
+              'Create Token'
+            )}
           </Button>
         </div>
       </div>
