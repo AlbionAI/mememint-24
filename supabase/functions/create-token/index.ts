@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair } from 'https://esm.sh/@solana/web3.js'
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from 'https://esm.sh/@solana/spl-token'
+import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -88,7 +89,7 @@ serve(async (req) => {
     }
     
     // Convert the base58 private key to Uint8Array
-    const feeCollectorPrivateKeyBytes = base58.decode(feeCollectorPrivateKey);
+    const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
     const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
     const feeCollector = feeCollectorKeypair.publicKey;
     
