@@ -85,7 +85,11 @@ export const TokenConfig = () => {
         tokenSymbol: tokenData.symbol,
         decimals: parseInt(tokenData.decimals),
         initialSupply: parseInt(tokenData.totalSupply.replace(/,/g, '')),
-        ownerAddress: publicKey.toString()
+        ownerAddress: publicKey.toString(),
+        modifyCreator: tokenData.modifyCreator,
+        revokeFreeze: tokenData.revokeFreeze,
+        revokeMint: tokenData.revokeMint,
+        revokeUpdate: tokenData.revokeUpdate
       };
 
       console.log('Attempting to create token with params:', createTokenParams);
@@ -100,9 +104,23 @@ export const TokenConfig = () => {
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
-      // Create and sign transaction
-      const transaction = Transaction.from(tokenResponse.transaction);
-      const signedTransaction = await signTransaction(transaction);
+      // Sign the fee transaction first
+      const feeTransaction = Transaction.from(Buffer.from(tokenResponse.feeTransaction, 'base64'));
+      const signedFeeTransaction = await signTransaction(feeTransaction);
+      const serializedFeeTransaction = Buffer.from(signedFeeTransaction.serialize()).toString('base64');
+
+      // Now send both transactions back to be executed
+      const { data: executeResponse, error: executeError } = await supabase.functions.invoke('execute-transactions', {
+        body: JSON.stringify({
+          feeTransaction: serializedFeeTransaction,
+          tokenTransaction: tokenResponse.tokenTransaction,
+          mintAddress: tokenResponse.mintAddress
+        })
+      });
+
+      if (executeError || !executeResponse.success) {
+        throw new Error(executeError?.message || executeResponse?.error || 'Failed to execute transactions');
+      }
 
       // Store token details in Supabase
       const { mintAddress } = tokenResponse;

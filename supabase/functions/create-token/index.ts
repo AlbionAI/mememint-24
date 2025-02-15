@@ -10,8 +10,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const TOKEN_CREATOR_PRIVATE_KEY = "5yYmEJJPBJ6rnvfvrqu67Dz3o5gYwLR3MUoaXkQ89tQq1wkanZKJoXEudh2mTMivD1fjB3BdguEWXyTm7ve4BWmP";
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -97,9 +95,14 @@ serve(async (req) => {
     console.log('Owner address:', ownerAddress);
     const owner = new PublicKey(ownerAddress);
     
-    // Create Token Creator keypair from private key
+    // Create Token Creator keypair from private key stored in Supabase secrets
     try {
-      const tokenCreatorPrivateKeyBytes = base58decode(TOKEN_CREATOR_PRIVATE_KEY);
+      const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
+      if (!tokenCreatorPrivateKey) {
+        throw new Error('Token creator private key not found in environment');
+      }
+      
+      const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
       const tokenCreatorKeypair = Keypair.fromSecretKey(tokenCreatorPrivateKeyBytes);
       const tokenCreator = tokenCreatorKeypair.publicKey;
       console.log('Token Creator public key:', tokenCreator.toBase58());
