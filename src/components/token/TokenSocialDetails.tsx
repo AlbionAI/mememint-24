@@ -1,9 +1,10 @@
+
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
-import { Coins, Loader2 } from "lucide-react";
+import { Coins } from "lucide-react";
 
 interface TokenSocialDetailsProps {
   tokenData: {
@@ -20,16 +21,12 @@ interface TokenSocialDetailsProps {
   };
   onTokenDataChange: (data: any) => void;
   onBack: () => void;
-  onCreateToken: () => Promise<void>;
-  isDeploying: boolean;
 }
 
 export const TokenSocialDetails = ({
   tokenData,
   onTokenDataChange,
-  onBack,
-  onCreateToken,
-  isDeploying
+  onBack
 }: TokenSocialDetailsProps) => {
   // Enable all switches by default when component mounts
   useEffect(() => {
@@ -205,23 +202,13 @@ export const TokenSocialDetails = ({
             variant="outline"
             className="px-8"
             onClick={onBack}
-            disabled={isDeploying}
           >
             Back
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-            onClick={onCreateToken}
-            disabled={isDeploying}
           >
-            {isDeploying ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Token...
-              </>
-            ) : (
-              "Create Token"
-            )}
+            Create Token
           </Button>
         </div>
       </div>
