@@ -80,7 +80,17 @@ serve(async (req) => {
 
     const connection = new Connection("https://api.mainnet-beta.solana.com");
     const owner = new PublicKey(ownerAddress);
-    const feeCollector = new PublicKey(Deno.env.get('SOLANA_PRIVATE_KEY') ?? '');
+    
+    // Create a new keypair from the fee collector's private key
+    const feeCollectorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
+    if (!feeCollectorPrivateKey) {
+      throw new Error('Fee collector private key not found');
+    }
+    
+    // Convert the base58 private key to Uint8Array
+    const feeCollectorPrivateKeyBytes = base58.decode(feeCollectorPrivateKey);
+    const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
+    const feeCollector = feeCollectorKeypair.publicKey;
     
     // Calculate rent for mint
     const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
