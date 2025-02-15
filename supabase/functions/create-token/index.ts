@@ -10,6 +10,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Define fee constants at the top level
+const BASE_FEE = 0.1;
+const OPTION_FEE = 0.1;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
@@ -82,14 +86,13 @@ serve(async (req) => {
     }
 
     // Calculate total fee based on selected options
-    const BASE_FEE = 0.1;
-    const OPTION_FEE = 0.1;
-    
     let totalFee = BASE_FEE;
     if (modifyCreator) totalFee += OPTION_FEE;
     if (revokeFreeze) totalFee += OPTION_FEE;
     if (revokeMint) totalFee += OPTION_FEE;
     if (revokeUpdate) totalFee += OPTION_FEE;
+
+    console.log('Calculated total fee:', totalFee, 'SOL');
 
     const connection = new Connection("https://api.mainnet-beta.solana.com");
     console.log('Owner address:', ownerAddress);
