@@ -8,24 +8,20 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
+import { Transaction } from '@solana/web3.js';
 
 export const TokenConfig = () => {
-  const { publicKey } = useWallet();
+  const { publicKey, signTransaction } = useWallet();
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   
   const [tokenData, setTokenData] = useState({
-    // Basic Details
     name: "",
     symbol: "",
     logo: null as File | null,
-    
-    // Supply Details
     decimals: "9",
     totalSupply: "1000000000",
     description: "",
-    
-    // Optional Social Details
     website: "",
     twitter: "",
     telegram: "",
@@ -52,12 +48,11 @@ export const TokenConfig = () => {
   };
 
   const handleCreateToken = async () => {
-    if (!publicKey) {
+    if (!publicKey || !signTransaction) {
       toast.error('Please connect your wallet first');
       return;
     }
 
-    // Validate required fields
     if (!tokenData.name || !tokenData.symbol) {
       toast.error('Token name and symbol are required');
       return;
@@ -65,7 +60,6 @@ export const TokenConfig = () => {
 
     setIsCreating(true);
     try {
-      // Upload logo if exists
       let logoUrl = null;
       if (tokenData.logo) {
         console.log('Starting logo upload process...');
@@ -97,25 +91,21 @@ export const TokenConfig = () => {
       console.log('Attempting to create token with params:', createTokenParams);
 
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
-        body: JSON.stringify(createTokenParams)  // Make sure we're stringifying the body
+        body: JSON.stringify(createTokenParams)
       });
 
       console.log('Raw token creation response:', tokenResponse);
       
-      if (functionError) {
-        console.error('Edge function error:', functionError);
-        throw new Error(`Failed to create token: ${functionError.message}`);
+      if (functionError || !tokenResponse.success) {
+        throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
-      if (!tokenResponse || !tokenResponse.success) {
-        console.error('Token creation failed:', tokenResponse);
-        throw new Error(tokenResponse?.error || 'Failed to create token');
-      }
+      // Create and sign transaction
+      const transaction = Transaction.from(tokenResponse.transaction);
+      const signedTransaction = await signTransaction(transaction);
 
-      // Only update token details if token was created successfully
+      // Store token details in Supabase
       const { mintAddress } = tokenResponse;
-
-      // Prepare optional fields object (only include non-empty values)
       const optionalFields = {
         ...(tokenData.description ? { description: tokenData.description } : {}),
         ...(tokenData.website ? { website: tokenData.website } : {}),
@@ -125,9 +115,7 @@ export const TokenConfig = () => {
         ...(logoUrl ? { logo_url: logoUrl } : {})
       };
 
-      // Only update if there are optional fields to update
       if (Object.keys(optionalFields).length > 0) {
-        console.log('Updating optional token details...');
         const { error: dbError } = await supabase
           .from('tokens')
           .update(optionalFields)
@@ -135,7 +123,6 @@ export const TokenConfig = () => {
 
         if (dbError) {
           console.warn('Warning: Failed to update optional token details:', dbError);
-          // Don't throw error here as the token was created successfully
           toast.warning('Token created, but failed to save additional details');
         }
       }
@@ -166,19 +153,11 @@ export const TokenConfig = () => {
       setCurrentStep(1);
 
     } catch (err) {
-      console.error('Full error details:', {
-        error: err,
-        message: err instanceof Error ? err.message : 'Unknown error',
-        stack: err instanceof Error ? err.stack : undefined
-      });
+      console.error('Full error details:', err);
       
-      let errorMessage = 'Unknown error occurred';
-      
-      if (err instanceof Error) {
-        errorMessage = err.message;
-        if (errorMessage.includes('insufficient funds')) {
-          errorMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
-        }
+      let errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
       }
       
       toast.error('Failed to create token', {
