@@ -91,14 +91,23 @@ serve(async (req) => {
     console.log('Creating keypair from secret key...');
     let payer;
     try {
-      payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secretKey)));
+      // Try to parse the key directly first
+      let keyArray;
+      try {
+        keyArray = new Uint8Array(secretKey.split(',').map(Number));
+      } catch (parseError) {
+        // If direct parsing fails, try JSON parse
+        keyArray = new Uint8Array(JSON.parse(secretKey));
+      }
+      
+      payer = Keypair.fromSecretKey(keyArray);
       console.log('Payer public key:', payer.publicKey.toString());
     } catch (keypairError) {
       console.error('Error creating keypair:', keypairError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Invalid SOLANA_PRIVATE_KEY format' 
+          error: 'Invalid SOLANA_PRIVATE_KEY format. Please check the key format.' 
         }),
         { 
           status: 500,
