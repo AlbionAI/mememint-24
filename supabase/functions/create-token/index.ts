@@ -118,32 +118,65 @@ serve(async (req) => {
       throw new Error('FEE_COLLECTOR_PRIVATE_KEY is not set in environment');
     }
 
+    // Validate private key format (base58 characters only)
+    const base58Regex = /^[1-9A-HJ-NP-Za-km-z]+$/;
+    if (!base58Regex.test(tokenCreatorPrivateKey)) {
+      throw new Error('SOLANA_PRIVATE_KEY is not in valid base58 format');
+    }
+    if (!base58Regex.test(feeCollectorPrivateKey)) {
+      throw new Error('FEE_COLLECTOR_PRIVATE_KEY is not in valid base58 format');
+    }
+
     let tokenCreatorKeypair: Keypair;
     try {
+      console.log('Token creator private key length:', tokenCreatorPrivateKey.length);
       const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
-      if (tokenCreatorPrivateKeyBytes.length !== 64) {
-        throw new Error('Invalid private key length');
+      console.log('Decoded private key bytes length:', tokenCreatorPrivateKeyBytes.length);
+      
+      // Convert to Uint8Array explicitly
+      const secretKey = new Uint8Array(tokenCreatorPrivateKeyBytes);
+      if (secretKey.length !== 64) {
+        console.error('Invalid secret key length:', secretKey.length);
+        throw new Error(`Invalid private key length: ${secretKey.length} (expected 64)`);
       }
-      tokenCreatorKeypair = Keypair.fromSecretKey(new Uint8Array(tokenCreatorPrivateKeyBytes));
+      
+      tokenCreatorKeypair = Keypair.fromSecretKey(secretKey);
       console.log('Successfully created token creator keypair');
       console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
     } catch (error) {
       console.error('Error creating token creator keypair:', error);
+      console.error('Token creator private key format:', {
+        length: tokenCreatorPrivateKey.length,
+        format: 'base58',
+        isBase58Valid: base58Regex.test(tokenCreatorPrivateKey)
+      });
       throw new Error('Failed to create token creator keypair: Invalid private key format');
     }
 
     let feeCollectorKeypair: Keypair;
     try {
+      console.log('Fee collector private key length:', feeCollectorPrivateKey.length);
       const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
-      if (feeCollectorPrivateKeyBytes.length !== 64) {
-        throw new Error('Invalid fee collector private key length');
+      console.log('Decoded fee collector bytes length:', feeCollectorPrivateKeyBytes.length);
+      
+      // Convert to Uint8Array explicitly
+      const secretKey = new Uint8Array(feeCollectorPrivateKeyBytes);
+      if (secretKey.length !== 64) {
+        console.error('Invalid fee collector secret key length:', secretKey.length);
+        throw new Error(`Invalid fee collector private key length: ${secretKey.length} (expected 64)`);
       }
-      feeCollectorKeypair = Keypair.fromSecretKey(new Uint8Array(feeCollectorPrivateKeyBytes));
+      
+      feeCollectorKeypair = Keypair.fromSecretKey(secretKey);
       console.log('Successfully created fee collector keypair');
       console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
     } catch (error) {
       console.error('Error creating fee collector keypair:', error);
-      throw new Error('Failed to create fee collector keypair: Invalid private key format');
+      console.error('Fee collector private key format:', {
+        length: feeCollectorPrivateKey.length,
+        format: 'base58',
+        isBase58Valid: base58Regex.test(feeCollectorPrivateKey)
+      });
+      throw new Error('Failed to create fee collector keypair: Invalid fee collector private key format');
     }
 
     // Generate mint keypair early
