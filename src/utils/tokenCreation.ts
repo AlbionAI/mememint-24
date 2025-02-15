@@ -1,4 +1,3 @@
-
 import {
   Connection,
   PublicKey,
@@ -18,8 +17,8 @@ import {
 } from '@solana/spl-token';
 import { Buffer } from 'buffer';
 
-// Polyfill for Buffer
-if (typeof window !== 'undefined') {
+// Ensure Buffer is available globally
+if (typeof window !== 'undefined' && !window.Buffer) {
   window.Buffer = Buffer;
 }
 
