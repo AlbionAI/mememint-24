@@ -94,122 +94,123 @@ serve(async (req) => {
     const connection = new Connection("https://api.mainnet-beta.solana.com");
     console.log('Owner address:', ownerAddress);
     const owner = new PublicKey(ownerAddress);
+
+    // Get both private keys
+    const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
+    const feeCollectorPrivateKey = Deno.env.get('FEE_COLLECTOR_PRIVATE_KEY');
     
-    // Create Token Creator keypair from private key stored in Supabase secrets
-    try {
-      const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
-      if (!tokenCreatorPrivateKey) {
-        throw new Error('Token creator private key not found in environment');
-      }
-      
-      const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
-      const tokenCreatorKeypair = Keypair.fromSecretKey(tokenCreatorPrivateKeyBytes);
-      const tokenCreator = tokenCreatorKeypair.publicKey;
-      console.log('Token Creator public key:', tokenCreator.toBase58());
-
-      // Calculate rent for mint
-      const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
-      
-      // Generate a new mint keypair
-      const mintKeypair = Keypair.generate();
-      
-      // Create two separate transactions
-      
-      // 1. Fee payment transaction (to be signed by owner)
-      const feeTransaction = new Transaction();
-      feeTransaction.add(
-        SystemProgram.transfer({
-          fromPubkey: owner,
-          toPubkey: tokenCreator,
-          lamports: totalFee * 1e9 // Convert SOL to lamports
-        })
-      );
-      
-      // 2. Token creation transaction (to be signed by token creator)
-      const tokenTransaction = new Transaction();
-      
-      // Add create account instruction
-      tokenTransaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: tokenCreator,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports: rentExemptMint,
-          programId: TOKEN_PROGRAM_ID,
-        })
-      );
-      
-      // Add initialize mint instruction
-      tokenTransaction.add(
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          Number(decimals),
-          owner, // Set owner as mint authority
-          modifyCreator ? owner : null, // Set freeze authority if modifyCreator is true
-          TOKEN_PROGRAM_ID
-        )
-      );
-      
-      // Get the token account for the owner
-      const tokenAccount = await getOrCreateAssociatedTokenAccount(
-        connection,
-        tokenCreatorKeypair, // Use token creator to create the account
-        mintKeypair.publicKey,
-        owner,
-        true
-      );
-      
-      // Add mint to instruction
-      tokenTransaction.add(
-        mintTo({
-          mint: mintKeypair.publicKey,
-          destination: tokenAccount.address,
-          authority: tokenCreator,
-          amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
-        })
-      );
-
-      // Record fee in database
-      const { error: dbError } = await supabaseClient
-        .from('token_fees')
-        .insert({
-          token_mint_address: mintKeypair.publicKey.toBase58(),
-          base_fee: BASE_FEE,
-          modify_creator_fee: modifyCreator ? OPTION_FEE : 0,
-          revoke_freeze_fee: revokeFreeze ? OPTION_FEE : 0,
-          revoke_mint_fee: revokeMint ? OPTION_FEE : 0,
-          revoke_update_fee: revokeUpdate ? OPTION_FEE : 0,
-          total_fee: totalFee
-        });
-
-      if (dbError) {
-        console.error('Error recording fee:', dbError);
-      }
-
-      // Sign the token transaction with token creator
-      tokenTransaction.sign(tokenCreatorKeypair, mintKeypair);
-      
-      // Serialize both transactions
-      const serializedFeeTransaction = Buffer.from(feeTransaction.serialize()).toString('base64');
-      const serializedTokenTransaction = Buffer.from(tokenTransaction.serialize()).toString('base64');
-      
-      return new Response(
-        JSON.stringify({
-          success: true,
-          feeTransaction: serializedFeeTransaction,
-          tokenTransaction: serializedTokenTransaction,
-          mintAddress: mintKeypair.publicKey.toBase58(),
-          totalFee
-        }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
-
-    } catch (error) {
-      console.error('Error in transaction creation:', error);
-      throw error;
+    if (!tokenCreatorPrivateKey || !feeCollectorPrivateKey) {
+      throw new Error('Required private keys not found in environment');
     }
+    
+    // Create keypairs for both wallets
+    const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
+    const tokenCreatorKeypair = Keypair.fromSecretKey(tokenCreatorPrivateKeyBytes);
+    
+    const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
+    const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
+    
+    console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
+    console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
+
+    // Calculate rent for mint
+    const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
+    
+    // Generate a new mint keypair
+    const mintKeypair = Keypair.generate();
+    
+    // Create two separate transactions
+    
+    // 1. Fee payment transaction (to be signed by owner)
+    const feeTransaction = new Transaction();
+    feeTransaction.add(
+      SystemProgram.transfer({
+        fromPubkey: owner,
+        toPubkey: feeCollectorKeypair.publicKey, // Send fee to fee collector
+        lamports: totalFee * 1e9 // Convert SOL to lamports
+      })
+    );
+    
+    // 2. Token creation transaction (to be signed by token creator)
+    const tokenTransaction = new Transaction();
+    
+    // Add create account instruction
+    tokenTransaction.add(
+      SystemProgram.createAccount({
+        fromPubkey: tokenCreatorKeypair.publicKey,
+        newAccountPubkey: mintKeypair.publicKey,
+        space: MINT_SIZE,
+        lamports: rentExemptMint,
+        programId: TOKEN_PROGRAM_ID,
+      })
+    );
+    
+    // Add initialize mint instruction
+    tokenTransaction.add(
+      createInitializeMintInstruction(
+        mintKeypair.publicKey,
+        Number(decimals),
+        owner,
+        modifyCreator ? owner : null,
+        TOKEN_PROGRAM_ID
+      )
+    );
+    
+    // Get the token account for the owner
+    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+      connection,
+      tokenCreatorKeypair,
+      mintKeypair.publicKey,
+      owner,
+      true
+    );
+    
+    // Add mint to instruction
+    tokenTransaction.add(
+      mintTo({
+        mint: mintKeypair.publicKey,
+        destination: tokenAccount.address,
+        authority: tokenCreatorKeypair.publicKey,
+        amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
+      })
+    );
+
+    // Record fee in database
+    const { error: dbError } = await supabaseClient
+      .from('token_fees')
+      .insert({
+        token_mint_address: mintKeypair.publicKey.toBase58(),
+        base_fee: BASE_FEE,
+        modify_creator_fee: modifyCreator ? OPTION_FEE : 0,
+        revoke_freeze_fee: revokeFreeze ? OPTION_FEE : 0,
+        revoke_mint_fee: revokeMint ? OPTION_FEE : 0,
+        revoke_update_fee: revokeUpdate ? OPTION_FEE : 0,
+        total_fee: totalFee
+      });
+
+    if (dbError) {
+      console.error('Error recording fee:', dbError);
+    }
+
+    // Sign the token transaction with token creator and mint keypair
+    tokenTransaction.sign(tokenCreatorKeypair, mintKeypair);
+    
+    // Serialize both transactions
+    const serializedFeeTransaction = Buffer.from(feeTransaction.serialize()).toString('base64');
+    const serializedTokenTransaction = Buffer.from(tokenTransaction.serialize()).toString('base64');
+    
+    return new Response(
+      JSON.stringify({
+        success: true,
+        feeTransaction: serializedFeeTransaction,
+        tokenTransaction: serializedTokenTransaction,
+        mintAddress: mintKeypair.publicKey.toBase58(),
+        totalFee
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
 
   } catch (error) {
     console.error('Error:', error);

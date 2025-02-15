@@ -32,6 +32,20 @@ serve(async (req) => {
 
     const connection = new Connection("https://api.mainnet-beta.solana.com");
 
+    // Get private keys
+    const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
+    const feeCollectorPrivateKey = Deno.env.get('FEE_COLLECTOR_PRIVATE_KEY');
+    
+    if (!tokenCreatorPrivateKey || !feeCollectorPrivateKey) {
+      throw new Error('Required private keys not found in environment');
+    }
+
+    // Create keypairs
+    const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
+    const tokenCreatorKeypair = Keypair.fromSecretKey(tokenCreatorPrivateKeyBytes);
+    
+    console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
+
     // Deserialize transactions
     const feeTransactionObj = Transaction.from(Buffer.from(feeTransaction, 'base64'));
     const tokenTransactionObj = Transaction.from(Buffer.from(tokenTransaction, 'base64'));
