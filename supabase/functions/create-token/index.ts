@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
@@ -179,11 +180,6 @@ serve(async (req) => {
       throw new Error('Failed to create fee collector keypair: Invalid fee collector private key format');
     }
 
-    // Generate mint keypair early
-    const mintKeypair = Keypair.generate();
-    console.log('Generated mint keypair');
-    console.log('Mint address:', mintKeypair.publicKey.toBase58());
-
     // Calculate rent and minimum balances
     const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
     const minBalanceForTokenAcc = await connection.getMinimumBalanceForRentExemption(165);
@@ -217,6 +213,11 @@ serve(async (req) => {
     if (isNaN(finalAmount) || finalAmount <= 0) {
       throw new Error('Error calculating final token amount');
     }
+
+    // Generate mint keypair early
+    const mintKeypair = Keypair.generate();
+    console.log('Generated mint keypair');
+    console.log('Mint address:', mintKeypair.publicKey.toBase58());
 
     // 1. Fee payment transaction
     const feeTransaction = new Transaction();
