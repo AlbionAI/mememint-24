@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
+import { Coins } from "lucide-react";
 
 interface TokenSocialDetailsProps {
   tokenData: {
@@ -37,6 +38,16 @@ export const TokenSocialDetails = ({
       revokeUpdate: true
     });
   }, []); // Empty dependency array means this runs once on mount
+
+  // Calculate total cost based on enabled switches
+  const calculateTotalCost = () => {
+    let cost = 0.1; // Base cost
+    if (tokenData.modifyCreator) cost += 0.1;
+    if (tokenData.revokeFreeze) cost += 0.1;
+    if (tokenData.revokeMint) cost += 0.1;
+    if (tokenData.revokeUpdate) cost += 0.1;
+    return cost.toFixed(1);
+  };
 
   return (
     <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
@@ -177,19 +188,29 @@ export const TokenSocialDetails = ({
         </div>
       </div>
       
-      <div className="flex justify-between pt-4">
-        <Button 
-          variant="outline"
-          className="px-8"
-          onClick={onBack}
-        >
-          Back
-        </Button>
-        <Button 
-          className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-        >
-          Create Token
-        </Button>
+      <div className="space-y-4">
+        <div className="flex items-center justify-center gap-2 text-white">
+          <span className="text-lg">Total Cost:</span>
+          <div className="flex items-center gap-1">
+            <span className="text-lg font-bold text-emerald-400">{calculateTotalCost()}</span>
+            <Coins className="h-5 w-5 text-emerald-400" />
+          </div>
+        </div>
+        
+        <div className="flex justify-between">
+          <Button 
+            variant="outline"
+            className="px-8"
+            onClick={onBack}
+          >
+            Back
+          </Button>
+          <Button 
+            className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+          >
+            Create Token
+          </Button>
+        </div>
       </div>
     </Card>
   );
