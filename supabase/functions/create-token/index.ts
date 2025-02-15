@@ -5,6 +5,9 @@ import { createMint, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRe
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base58encode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 
+// Add Buffer polyfill for Deno environment
+const Buffer = require('buffer').Buffer;
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -42,14 +45,8 @@ serve(async (req) => {
       const decodedCreatorKey = base58decode(tokenCreatorPrivateKey);
       console.log('Decoded token creator key length:', decodedCreatorKey.length);
       
-      // Convert to Uint8Array and ensure it's exactly 64 bytes
-      const secretKey = new Uint8Array(64);
-      secretKey.set(decodedCreatorKey.slice(0, 64));
-      
-      tokenCreatorKeypair = Keypair.fromSecretKey(secretKey);
-      if (!tokenCreatorKeypair.publicKey) {
-        throw new Error('Failed to generate public key for token creator');
-      }
+      // Use Uint8Array directly
+      tokenCreatorKeypair = Keypair.fromSecretKey(decodedCreatorKey);
       console.log('Token creator public key:', tokenCreatorKeypair.publicKey.toBase58());
     } catch (error) {
       console.error('Error creating token creator keypair:', error);
@@ -63,14 +60,8 @@ serve(async (req) => {
       const decodedCollectorKey = base58decode(feeCollectorPrivateKey);
       console.log('Decoded fee collector key length:', decodedCollectorKey.length);
       
-      // Convert to Uint8Array and ensure it's exactly 64 bytes
-      const secretKey = new Uint8Array(64);
-      secretKey.set(decodedCollectorKey.slice(0, 64));
-      
-      feeCollectorKeypair = Keypair.fromSecretKey(secretKey);
-      if (!feeCollectorKeypair.publicKey) {
-        throw new Error('Failed to generate public key for fee collector');
-      }
+      // Use Uint8Array directly
+      feeCollectorKeypair = Keypair.fromSecretKey(decodedCollectorKey);
       console.log('Fee collector public key:', feeCollectorKeypair.publicKey.toBase58());
     } catch (error) {
       console.error('Error creating fee collector keypair:', error);
