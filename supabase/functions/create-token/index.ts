@@ -85,8 +85,8 @@ serve(async (req) => {
     // Calculate rent for mint
     const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
     
-    // Generate a new mint address
-    const mintKeypair = new PublicKey(ownerAddress);
+    // Generate a new mint keypair
+    const mintKeypair = Keypair.generate();
     
     // Create transaction
     const transaction = new Transaction();
@@ -104,7 +104,7 @@ serve(async (req) => {
     transaction.add(
       SystemProgram.createAccount({
         fromPubkey: owner,
-        newAccountPubkey: mintKeypair,
+        newAccountPubkey: mintKeypair.publicKey,
         space: MINT_SIZE,
         lamports: rentExemptMint,
         programId: TOKEN_PROGRAM_ID,
@@ -114,7 +114,7 @@ serve(async (req) => {
     // Add initialize mint instruction
     transaction.add(
       createInitializeMintInstruction(
-        mintKeypair,
+        mintKeypair.publicKey,
         decimals,
         owner,
         modifyCreator ? owner : null,
@@ -126,7 +126,7 @@ serve(async (req) => {
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
       owner,
-      mintKeypair,
+      mintKeypair.publicKey,
       owner,
       true
     );
@@ -134,7 +134,7 @@ serve(async (req) => {
     // Add mint to instruction
     transaction.add(
       mintTo({
-        mint: mintKeypair,
+        mint: mintKeypair.publicKey,
         destination: tokenAccount.address,
         authority: owner,
         amount: initialSupply * Math.pow(10, decimals)
@@ -145,7 +145,7 @@ serve(async (req) => {
     const { error: dbError } = await supabaseClient
       .from('token_fees')
       .insert({
-        token_mint_address: mintKeypair.toBase58(),
+        token_mint_address: mintKeypair.publicKey.toBase58(),
         base_fee: BASE_FEE,
         modify_creator_fee: modifyCreator ? OPTION_FEE : 0,
         revoke_freeze_fee: revokeFreeze ? OPTION_FEE : 0,
@@ -166,7 +166,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         transaction: serializedTransaction,
-        mintAddress: mintKeypair.toBase58(),
+        mintAddress: mintKeypair.publicKey.toBase58(),
         totalFee
       }),
       { 
