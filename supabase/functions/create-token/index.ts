@@ -71,18 +71,27 @@ serve(async (req) => {
       revokeUpdate
     });
 
-    if (!tokenName || !tokenSymbol || decimals === undefined || !initialSupply || !ownerAddress) {
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Missing required fields",
-          receivedFields: { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress }
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      )
+    // Validate all required parameters
+    if (!tokenName || typeof tokenName !== 'string' || tokenName.trim() === '') {
+      throw new Error('Invalid token name');
+    }
+    if (!tokenSymbol || typeof tokenSymbol !== 'string' || tokenSymbol.trim() === '') {
+      throw new Error('Invalid token symbol');
+    }
+    if (typeof decimals !== 'number' || decimals < 0 || decimals > 9) {
+      throw new Error('Invalid decimals value. Must be between 0 and 9');
+    }
+    if (!initialSupply || Number(initialSupply) <= 0) {
+      throw new Error('Initial supply must be greater than 0');
+    }
+    if (!ownerAddress || typeof ownerAddress !== 'string' || !ownerAddress.trim()) {
+      throw new Error('Invalid owner address');
+    }
+
+    try {
+      new PublicKey(ownerAddress);
+    } catch (e) {
+      throw new Error('Invalid Solana address format for owner');
     }
 
     // Calculate total fee based on selected options
@@ -136,22 +145,21 @@ serve(async (req) => {
 
     // Calculate initial supply with decimals
     console.log('Raw initial supply:', initialSupply);
-    const supplyString = String(initialSupply); // Convert to string first
-    const cleanSupply = supplyString.replace(/,/g, ''); // Remove commas
-    const numericSupply = parseInt(cleanSupply, 10); // Convert to number safely
+    const supplyString = String(initialSupply).replace(/[^0-9]/g, ''); // Remove all non-numeric characters
+    const numericSupply = parseInt(supplyString, 10);
     
-    if (isNaN(numericSupply)) {
-      throw new Error('Invalid initial supply amount');
+    if (isNaN(numericSupply) || numericSupply <= 0) {
+      throw new Error('Initial supply must be a positive number');
     }
     
-    const decimalMultiplier = Math.pow(10, Number(decimals));
+    const decimalMultiplier = Math.pow(10, decimals);
     const finalAmount = numericSupply * decimalMultiplier;
     
     console.log('Initial supply:', numericSupply);
     console.log('Decimal multiplier:', decimalMultiplier);
     console.log('Final amount:', finalAmount);
 
-    if (isNaN(finalAmount)) {
+    if (isNaN(finalAmount) || finalAmount <= 0) {
       throw new Error('Error calculating final token amount');
     }
 
@@ -179,19 +187,21 @@ serve(async (req) => {
       })
     );
     
-    // Initialize mint
+    // Initialize mint with explicit null checks
+    const freezeAuthority = modifyCreator ? owner : null;
+    
     tokenTransaction.add(
       createInitializeMintInstruction(
         mintKeypair.publicKey,
-        Number(decimals),
+        decimals,
         tokenCreatorKeypair.publicKey,
-        modifyCreator ? owner : null,
+        freezeAuthority,
         TOKEN_PROGRAM_ID
       )
     );
     
     // Create associated token account
-    const associatedTokenAddress = await PublicKey.findProgramAddress(
+    const [associatedTokenAddress] = await PublicKey.findProgramAddress(
       [
         owner.toBuffer(),
         TOKEN_PROGRAM_ID.toBuffer(),
@@ -200,12 +210,16 @@ serve(async (req) => {
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
 
-    console.log('Associated token account address:', associatedTokenAddress[0].toBase58());
+    if (!associatedTokenAddress) {
+      throw new Error('Failed to create associated token account address');
+    }
+
+    console.log('Associated token account address:', associatedTokenAddress.toBase58());
     
     tokenTransaction.add(
       createAssociatedTokenAccountInstruction(
         tokenCreatorKeypair.publicKey,
-        associatedTokenAddress[0],
+        associatedTokenAddress,
         owner,
         mintKeypair.publicKey
       )
@@ -215,7 +229,7 @@ serve(async (req) => {
     tokenTransaction.add(
       mintTo({
         mint: mintKeypair.publicKey,
-        destination: associatedTokenAddress[0],
+        destination: associatedTokenAddress,
         authority: tokenCreatorKeypair.publicKey,
         amount: finalAmount
       })
