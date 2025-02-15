@@ -116,17 +116,17 @@ serve(async (req) => {
     console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
     console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
 
-    // Calculate all the required rent and fees
-    const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
+    // Generate mint keypair early
     const mintKeypair = Keypair.generate();
-    
-    // Calculate the minimum balance required for the associated token account
+    console.log('Mint address:', mintKeypair.publicKey.toBase58());
+
+    // Calculate rent and minimum balances
+    const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
     const minBalanceForTokenAcc = await connection.getMinimumBalanceForRentExemption(165);
+    const requiredBalance = rentExemptMint + minBalanceForTokenAcc;
     
     // Check token creator balance
     const tokenCreatorBalance = await connection.getBalance(tokenCreatorKeypair.publicKey);
-    const requiredBalance = rentExemptMint + minBalanceForTokenAcc;
-    
     console.log('Token creator balance:', tokenCreatorBalance / LAMPORTS_PER_SOL, 'SOL');
     console.log('Required balance:', requiredBalance / LAMPORTS_PER_SOL, 'SOL');
     
@@ -134,9 +134,12 @@ serve(async (req) => {
       throw new Error(`Token creator wallet needs at least ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL for rent exemption`);
     }
 
-    // Create two separate transactions
-    
-    // 1. Fee payment transaction (to be signed by owner)
+    // Calculate initial supply with decimals
+    const suppliedAmount = Number(initialSupply.replace(/,/g, '')); // Remove commas
+    const calculatedAmount = suppliedAmount * Math.pow(10, Number(decimals));
+    console.log('Calculated token amount:', calculatedAmount);
+
+    // 1. Fee payment transaction
     const feeTransaction = new Transaction();
     feeTransaction.add(
       SystemProgram.transfer({
@@ -146,10 +149,10 @@ serve(async (req) => {
       })
     );
     
-    // 2. Token creation transaction (to be signed by token creator)
+    // 2. Token creation transaction
     const tokenTransaction = new Transaction();
     
-    // Add create account instruction for the mint
+    // Create mint account
     tokenTransaction.add(
       SystemProgram.createAccount({
         fromPubkey: tokenCreatorKeypair.publicKey,
@@ -160,18 +163,18 @@ serve(async (req) => {
       })
     );
     
-    // Add initialize mint instruction
+    // Initialize mint
     tokenTransaction.add(
       createInitializeMintInstruction(
         mintKeypair.publicKey,
         Number(decimals),
-        owner,
+        tokenCreatorKeypair.publicKey, // Set token creator as initial authority
         modifyCreator ? owner : null,
         TOKEN_PROGRAM_ID
       )
     );
     
-    // Get associated token account address
+    // Create associated token account
     const associatedTokenAddress = await PublicKey.findProgramAddress(
       [
         owner.toBuffer(),
@@ -183,23 +186,22 @@ serve(async (req) => {
 
     console.log('Associated token account address:', associatedTokenAddress[0].toBase58());
     
-    // Add create associated token account instruction
     tokenTransaction.add(
       createAssociatedTokenAccountInstruction(
-        tokenCreatorKeypair.publicKey, // payer
-        associatedTokenAddress[0], // associated token account address
-        owner, // owner
-        mintKeypair.publicKey // mint
+        tokenCreatorKeypair.publicKey,
+        associatedTokenAddress[0],
+        owner,
+        mintKeypair.publicKey
       )
     );
     
-    // Add mint to instruction
+    // Mint tokens
     tokenTransaction.add(
       mintTo({
         mint: mintKeypair.publicKey,
         destination: associatedTokenAddress[0],
         authority: tokenCreatorKeypair.publicKey,
-        amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
+        amount: calculatedAmount
       })
     );
 
@@ -220,10 +222,10 @@ serve(async (req) => {
       console.error('Error recording fee:', dbError);
     }
 
-    // Sign the token transaction with token creator and mint keypair
+    // Sign the token transaction
     tokenTransaction.sign(tokenCreatorKeypair, mintKeypair);
     
-    // Serialize both transactions
+    // Serialize transactions
     const serializedFeeTransaction = Buffer.from(feeTransaction.serialize()).toString('base64');
     const serializedTokenTransaction = Buffer.from(tokenTransaction.serialize()).toString('base64');
     
