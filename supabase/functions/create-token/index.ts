@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction } from 'https://esm.sh/@solana/web3.js'
+import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair } from 'https://esm.sh/@solana/web3.js'
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from 'https://esm.sh/@solana/spl-token'
 
 const corsHeaders = {
@@ -42,7 +42,17 @@ serve(async (req) => {
       );
     }
 
-    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = parsedBody;
+    const { 
+      tokenName, 
+      tokenSymbol, 
+      decimals, 
+      initialSupply, 
+      ownerAddress,
+      modifyCreator,
+      revokeFreeze,
+      revokeMint,
+      revokeUpdate
+    } = parsedBody;
     
     if (!tokenName || !tokenSymbol || !decimals || !initialSupply || !ownerAddress) {
       return new Response(
@@ -58,8 +68,19 @@ serve(async (req) => {
       )
     }
 
+    // Calculate total fee based on selected options
+    const BASE_FEE = 0.1;
+    const OPTION_FEE = 0.1;
+    
+    let totalFee = BASE_FEE;
+    if (modifyCreator) totalFee += OPTION_FEE;
+    if (revokeFreeze) totalFee += OPTION_FEE;
+    if (revokeMint) totalFee += OPTION_FEE;
+    if (revokeUpdate) totalFee += OPTION_FEE;
+
     const connection = new Connection("https://api.mainnet-beta.solana.com");
     const owner = new PublicKey(ownerAddress);
+    const feeCollector = new PublicKey(Deno.env.get('SOLANA_PRIVATE_KEY') ?? '');
     
     // Calculate rent for mint
     const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
@@ -67,8 +88,17 @@ serve(async (req) => {
     // Generate a new mint address
     const mintKeypair = new PublicKey(ownerAddress);
     
-    // Create transaction to create mint account
+    // Create transaction
     const transaction = new Transaction();
+    
+    // Add fee transfer instruction
+    transaction.add(
+      SystemProgram.transfer({
+        fromPubkey: owner,
+        toPubkey: feeCollector,
+        lamports: totalFee * 1e9 // Convert SOL to lamports
+      })
+    );
     
     // Add create account instruction
     transaction.add(
@@ -87,7 +117,7 @@ serve(async (req) => {
         mintKeypair,
         decimals,
         owner,
-        null,
+        modifyCreator ? owner : null,
         TOKEN_PROGRAM_ID
       )
     );
@@ -111,6 +141,24 @@ serve(async (req) => {
       })
     );
 
+    // Record fee in database
+    const { error: dbError } = await supabaseClient
+      .from('token_fees')
+      .insert({
+        token_mint_address: mintKeypair.toBase58(),
+        base_fee: BASE_FEE,
+        modify_creator_fee: modifyCreator ? OPTION_FEE : 0,
+        revoke_freeze_fee: revokeFreeze ? OPTION_FEE : 0,
+        revoke_mint_fee: revokeMint ? OPTION_FEE : 0,
+        revoke_update_fee: revokeUpdate ? OPTION_FEE : 0,
+        total_fee: totalFee
+      });
+
+    if (dbError) {
+      console.error('Error recording fee:', dbError);
+      // Continue with transaction even if fee recording fails
+    }
+
     // Return the serialized transaction for signing
     const serializedTransaction = transaction.serialize();
     
@@ -118,7 +166,8 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         transaction: serializedTransaction,
-        mintAddress: mintKeypair.toBase58()
+        mintAddress: mintKeypair.toBase58(),
+        totalFee
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

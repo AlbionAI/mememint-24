@@ -41,6 +41,42 @@ export type Database = {
           },
         ]
       }
+      token_fees: {
+        Row: {
+          base_fee: number
+          created_at: string | null
+          id: string
+          modify_creator_fee: number | null
+          revoke_freeze_fee: number | null
+          revoke_mint_fee: number | null
+          revoke_update_fee: number | null
+          token_mint_address: string
+          total_fee: number
+        }
+        Insert: {
+          base_fee: number
+          created_at?: string | null
+          id?: string
+          modify_creator_fee?: number | null
+          revoke_freeze_fee?: number | null
+          revoke_mint_fee?: number | null
+          revoke_update_fee?: number | null
+          token_mint_address: string
+          total_fee: number
+        }
+        Update: {
+          base_fee?: number
+          created_at?: string | null
+          id?: string
+          modify_creator_fee?: number | null
+          revoke_freeze_fee?: number | null
+          revoke_mint_fee?: number | null
+          revoke_update_fee?: number | null
+          token_mint_address?: string
+          total_fee?: number
+        }
+        Relationships: []
+      }
       tokens: {
         Row: {
           created_at: string | null
