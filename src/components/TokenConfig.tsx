@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
+import { WalletCard } from "./token/WalletCard";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
 import { TokenSocialDetails } from "./token/TokenSocialDetails";
@@ -106,32 +107,36 @@ export const TokenConfig = () => {
     <div className="space-y-8">
       <StepTracker currentStep={step} />
 
-      <div>
-        {step === 1 && (
-          <TokenBasicDetails 
-            tokenData={tokenData}
-            onTokenDataChange={setTokenData}
-            onNext={handleNext}
-            handleFileChange={handleFileChange}
-          />
-        )}
+      <div className="grid gap-8 md:grid-cols-2">
+        <div>
+          {step === 1 && (
+            <TokenBasicDetails 
+              tokenData={tokenData}
+              onTokenDataChange={setTokenData}
+              onNext={handleNext}
+              handleFileChange={handleFileChange}
+            />
+          )}
 
-        {step === 2 && (
-          <TokenSupplyDetails 
-            tokenData={tokenData}
-            onTokenDataChange={setTokenData}
-            onBack={() => setStep(1)}
-            onNext={() => setStep(3)}
-          />
-        )}
+          {step === 2 && (
+            <TokenSupplyDetails 
+              tokenData={tokenData}
+              onTokenDataChange={setTokenData}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
+          )}
 
-        {step === 3 && (
-          <TokenSocialDetails 
-            tokenData={tokenData}
-            onTokenDataChange={setTokenData}
-            onBack={() => setStep(2)}
-          />
-        )}
+          {step === 3 && (
+            <TokenSocialDetails 
+              tokenData={tokenData}
+              onTokenDataChange={setTokenData}
+              onBack={() => setStep(2)}
+            />
+          )}
+        </div>
+
+        <WalletCard />
       </div>
     </div>
   );

@@ -5,18 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useEffect } from "react";
 import { Coins } from "lucide-react";
-import { useConnection, useWallet } from '@solana/wallet-adapter-react';
-import { createToken } from '@/utils/tokenCreation';
-import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
   tokenData: {
-    name: string;
-    symbol: string;
-    description: string;
-    totalSupply: string;
-    decimals: string;
-    logo: File | null;
     website: string;
     twitter: string;
     telegram: string;
@@ -37,9 +28,6 @@ export const TokenSocialDetails = ({
   onTokenDataChange,
   onBack
 }: TokenSocialDetailsProps) => {
-  const { connection } = useConnection();
-  const wallet = useWallet();
-
   // Enable all switches by default when component mounts
   useEffect(() => {
     onTokenDataChange({
@@ -59,44 +47,6 @@ export const TokenSocialDetails = ({
     if (tokenData.revokeMint) cost += 0.1;
     if (tokenData.revokeUpdate) cost += 0.1;
     return cost.toFixed(1);
-  };
-
-  const handleCreateToken = async () => {
-    try {
-      // Show loading toast
-      toast.loading('Creating your token...', { duration: 10000 });
-
-      const result = await createToken(connection, wallet, {
-        name: tokenData.name,
-        symbol: tokenData.symbol,
-        description: tokenData.description,
-        totalSupply: tokenData.totalSupply,
-        decimals: tokenData.decimals,
-        logo: tokenData.logo,
-        website: tokenData.website,
-        twitter: tokenData.twitter,
-        telegram: tokenData.telegram,
-        discord: tokenData.discord,
-        revokeFreeze: tokenData.revokeFreeze,
-        revokeMint: tokenData.revokeMint,
-        revokeUpdate: tokenData.revokeUpdate
-      });
-
-      // Show success toast with mint address
-      toast.success('Token created successfully!', {
-        description: `Mint Address: ${result.mintAddress}`,
-        duration: 10000,
-      });
-
-      // Log the result for debugging
-      console.log('Token creation result:', result);
-
-    } catch (error) {
-      console.error('Error creating token:', error);
-      toast.error('Failed to create token', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
-    }
   };
 
   return (
@@ -257,8 +207,6 @@ export const TokenSocialDetails = ({
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-            onClick={handleCreateToken}
-            disabled={!wallet.connected}
           >
             Create Token
           </Button>
