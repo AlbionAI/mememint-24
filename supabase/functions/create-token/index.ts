@@ -67,7 +67,22 @@ serve(async (req) => {
       const lamports = await getMinimumBalanceForRentExemptMint(connection);
       console.log('Required lamports:', lamports);
 
-      const transaction = new Transaction().add(
+      // Check if token creator has enough SOL
+      const balance = await connection.getBalance(tokenCreatorKeypair.publicKey);
+      console.log('Token creator balance:', balance / LAMPORTS_PER_SOL, 'SOL');
+      
+      if (balance < lamports) {
+        throw new Error(`Insufficient funds. Need at least ${lamports / LAMPORTS_PER_SOL} SOL`);
+      }
+
+      const transaction = new Transaction();
+
+      // Get the latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = tokenCreatorKeypair.publicKey;
+
+      transaction.add(
         SystemProgram.createAccount({
           fromPubkey: tokenCreatorKeypair.publicKey,
           newAccountPubkey: mintKeypair.publicKey,
@@ -84,21 +99,36 @@ serve(async (req) => {
         )
       );
 
-      const signature = await connection.sendTransaction(
-        transaction,
-        [tokenCreatorKeypair, mintKeypair]
-      );
+      // Sign and serialize the transaction
+      const signedTransaction = await transaction.sign(tokenCreatorKeypair, mintKeypair);
+      const serializedTransaction = signedTransaction.serialize();
+
+      // Send the transaction
+      const signature = await connection.sendRawTransaction(serializedTransaction, {
+        skipPreflight: false,
+        preflightCommitment: 'confirmed'
+      });
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature);
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+      }
 
       console.log('Token created successfully. Signature:', signature);
 
+      // Create response with base64 encoded transaction
+      const response = {
+        success: true,
+        mintAddress: mintKeypair.publicKey.toBase58(),
+        tokenCreatorPublicKey: tokenCreatorKeypair.publicKey.toBase58(),
+        feeCollectorPublicKey: feeCollectorKeypair.publicKey.toBase58(),
+        signature,
+        tokenTransaction: serializedTransaction.toString('base64')
+      };
+
       return new Response(
-        JSON.stringify({ 
-          success: true,
-          mintAddress: mintKeypair.publicKey.toBase58(),
-          tokenCreatorPublicKey: tokenCreatorKeypair.publicKey.toBase58(),
-          feeCollectorPublicKey: feeCollectorKeypair.publicKey.toBase58(),
-          signature
-        }),
+        JSON.stringify(response),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
