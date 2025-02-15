@@ -70,7 +70,7 @@ export const TokenConfig = () => {
 
         if (uploadError) {
           console.error('Logo upload error:', uploadError);
-          throw uploadError;
+          throw new Error(`Failed to upload logo: ${uploadError.message}`);
         }
         
         // Get public URL
@@ -81,7 +81,14 @@ export const TokenConfig = () => {
         logoUrl = publicUrl;
       }
 
-      console.log('Creating token...');
+      console.log('Creating token with params:', {
+        tokenName: tokenData.name,
+        tokenSymbol: tokenData.symbol,
+        decimals: parseInt(tokenData.decimals),
+        initialSupply: parseInt(tokenData.totalSupply.replace(/,/g, '')),
+        ownerAddress: publicKey.toString()
+      });
+
       const { data: tokenResponse, error } = await supabase.functions.invoke('create-token', {
         body: {
           tokenName: tokenData.name,
@@ -93,14 +100,16 @@ export const TokenConfig = () => {
       });
 
       if (error) {
-        console.error('Token creation error:', error);
-        throw error;
+        console.error('Edge function error:', error);
+        throw new Error(`Edge function error: ${error.message}`);
       }
 
       if (!tokenResponse.success) {
         console.error('Token creation failed:', tokenResponse);
         throw new Error(tokenResponse.error || 'Failed to create token');
       }
+
+      console.log('Token created successfully:', tokenResponse);
 
       console.log('Updating token details in database...');
       // Update token details in database
@@ -118,7 +127,7 @@ export const TokenConfig = () => {
 
       if (dbError) {
         console.error('Database update error:', dbError);
-        throw dbError;
+        throw new Error(`Failed to update token details: ${dbError.message}`);
       }
 
       toast.success('Token created successfully!', {
@@ -156,6 +165,12 @@ export const TokenConfig = () => {
         if (errorMessage.includes('insufficient funds')) {
           errorMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
         }
+        // Log the full error details for debugging
+        console.error('Full error details:', {
+          message: err.message,
+          stack: err.stack,
+          name: err.name
+        });
       }
       
       toast.error('Failed to create token', {
