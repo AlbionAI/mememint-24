@@ -9,8 +9,8 @@ on storage.objects for select
 to public
 using ( bucket_id = 'token-logos' );
 
--- Set up RLS policy to allow authenticated users to upload logos
+-- Set up RLS policy to allow anyone to upload logos
 create policy "Anyone can upload token logos"
 on storage.objects for insert
 to public
-using ( bucket_id = 'token-logos' );
+with check ( bucket_id = 'token-logos' );
