@@ -23,17 +23,34 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     )
 
-    // Get request body
-    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = await req.json()
-    console.log('Received parameters:', { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress });
+    // Get and log request body
+    const requestBody = await req.text();
+    console.log('Raw request body:', requestBody);
 
-    // Validate required fields
+    let parsedBody;
+    try {
+      parsedBody = JSON.parse(requestBody);
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      throw new Error('Invalid JSON in request body');
+    }
+
+    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = parsedBody;
+    console.log('Parsed parameters:', { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress });
+
+    // Validate required fields with detailed logging
+    if (!tokenName) console.error('Missing tokenName');
+    if (!tokenSymbol) console.error('Missing tokenSymbol');
+    if (!decimals) console.error('Missing decimals');
+    if (!initialSupply) console.error('Missing initialSupply');
+    if (!ownerAddress) console.error('Missing ownerAddress');
+
     if (!tokenName || !tokenSymbol || !decimals || !initialSupply || !ownerAddress) {
-      console.error('Missing required fields:', { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress });
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: "Missing required fields." 
+          error: "Missing required fields",
+          receivedFields: { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress }
         }),
         { 
           status: 400,
@@ -42,11 +59,11 @@ serve(async (req) => {
       )
     }
 
-    // Initialize Solana connection
+    // Initialize Solana connection with better error handling
     console.log('Initializing Solana connection...');
     const connection = new Connection("https://api.mainnet-beta.solana.com")
     
-    // Get private key from environment
+    // Validate and get private key
     const secretKey = Deno.env.get('SOLANA_PRIVATE_KEY');
     if (!secretKey) {
       console.error('SOLANA_PRIVATE_KEY not found in environment variables');
@@ -54,60 +71,91 @@ serve(async (req) => {
     }
 
     console.log('Creating keypair from secret key...');
-    const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secretKey)));
+    let payer;
+    try {
+      payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secretKey)));
+      console.log('Payer public key:', payer.publicKey.toString());
+    } catch (keypairError) {
+      console.error('Error creating keypair:', keypairError);
+      throw new Error('Invalid SOLANA_PRIVATE_KEY format');
+    }
 
-    // Create mint
+    // Create mint with detailed logging
     console.log('Creating mint...');
-    const mint = await createMint(
-      connection,
-      payer,
-      payer.publicKey,
-      null,
-      decimals
-    )
-    const mintAddress = mint.toBase58()
-    console.log('Mint created:', mintAddress);
+    let mint;
+    try {
+      mint = await createMint(
+        connection,
+        payer,
+        payer.publicKey,
+        null,
+        decimals
+      );
+      console.log('Mint created successfully:', mint.toBase58());
+    } catch (mintError) {
+      console.error('Error creating mint:', mintError);
+      throw mintError;
+    }
 
-    // Create token account for owner
+    const mintAddress = mint.toBase58();
+
+    // Create token account for owner with detailed logging
     console.log('Creating token account for owner:', ownerAddress);
-    const ownerPublicKey = new PublicKey(ownerAddress)
-    const tokenAccount = await getOrCreateAssociatedTokenAccount(
-      connection,
-      payer,
-      mint,
-      ownerPublicKey
-    )
+    let tokenAccount;
+    try {
+      const ownerPublicKey = new PublicKey(ownerAddress);
+      tokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        payer,
+        mint,
+        ownerPublicKey
+      );
+      console.log('Token account created:', tokenAccount.address.toBase58());
+    } catch (tokenAccountError) {
+      console.error('Error creating token account:', tokenAccountError);
+      throw tokenAccountError;
+    }
 
-    // Mint initial supply to owner
+    // Mint initial supply with detailed logging
     console.log('Minting initial supply:', initialSupply);
-    await mintTo(
-      connection,
-      payer,
-      mint,
-      tokenAccount.address,
-      payer,
-      initialSupply * Math.pow(10, decimals)
-    )
+    try {
+      await mintTo(
+        connection,
+        payer,
+        mint,
+        tokenAccount.address,
+        payer,
+        initialSupply * Math.pow(10, decimals)
+      );
+      console.log('Initial supply minted successfully');
+    } catch (mintToError) {
+      console.error('Error minting initial supply:', mintToError);
+      throw mintToError;
+    }
 
-    // Store token details in Supabase
+    // Store token details in Supabase with detailed logging
     console.log('Storing token details in Supabase...');
-    const { data, error } = await supabaseClient
+    const { data, error: dbError } = await supabaseClient
       .from('tokens')
       .insert([{
         token_name: tokenName,
         token_symbol: tokenSymbol,
         mint_address: mintAddress,
         owner_address: ownerAddress
-      }])
+      }]);
 
-    if (error) {
-      console.error('Supabase insert error:', error);
-      throw error;
+    if (dbError) {
+      console.error('Supabase insert error:', dbError);
+      throw dbError;
     }
 
     console.log('Token creation completed successfully');
     return new Response(
-      JSON.stringify({ success: true, mintAddress }),
+      JSON.stringify({ 
+        success: true, 
+        mintAddress,
+        message: 'Token created successfully'
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
