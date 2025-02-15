@@ -1,9 +1,9 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from 'https://esm.sh/@solana/spl-token'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
+import { encode as base58encode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -130,54 +130,52 @@ serve(async (req) => {
 
     let tokenCreatorKeypair: Keypair;
     try {
-      console.log('Token creator private key length:', tokenCreatorPrivateKey.length);
-      const tokenCreatorPrivateKeyBytes = base58decode(tokenCreatorPrivateKey);
-      console.log('Decoded private key bytes length:', tokenCreatorPrivateKeyBytes.length);
+      // First decode from base58
+      const decodedBytes = base58decode(tokenCreatorPrivateKey);
+      // Then encode back to base58 to ensure proper format
+      const encodedKey = base58encode(decodedBytes);
+      console.log('Token creator key validation:');
+      console.log('Original length:', tokenCreatorPrivateKey.length);
+      console.log('Decoded length:', decodedBytes.length);
+      console.log('Re-encoded length:', encodedKey.length);
       
-      // Convert to Uint8Array explicitly
-      const secretKey = new Uint8Array(tokenCreatorPrivateKeyBytes);
-      if (secretKey.length !== 64) {
-        console.error('Invalid secret key length:', secretKey.length);
-        throw new Error(`Invalid private key length: ${secretKey.length} (expected 64)`);
-      }
-      
+      // Create keypair using decoded bytes
+      const secretKey = new Uint8Array(decodedBytes);
       tokenCreatorKeypair = Keypair.fromSecretKey(secretKey);
       console.log('Successfully created token creator keypair');
       console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
     } catch (error) {
-      console.error('Error creating token creator keypair:', error);
-      console.error('Token creator private key format:', {
-        length: tokenCreatorPrivateKey.length,
-        format: 'base58',
-        isBase58Valid: base58Regex.test(tokenCreatorPrivateKey)
+      console.error('Error processing token creator private key:', error);
+      console.error('Key details:', {
+        originalLength: tokenCreatorPrivateKey.length,
+        isBase58: /^[1-9A-HJ-NP-Za-km-z]+$/.test(tokenCreatorPrivateKey)
       });
-      throw new Error('Failed to create token creator keypair: Invalid private key format');
+      throw new Error('Invalid token creator private key format');
     }
 
     let feeCollectorKeypair: Keypair;
     try {
-      console.log('Fee collector private key length:', feeCollectorPrivateKey.length);
-      const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
-      console.log('Decoded fee collector bytes length:', feeCollectorPrivateKeyBytes.length);
+      // First decode from base58
+      const decodedBytes = base58decode(feeCollectorPrivateKey);
+      // Then encode back to base58 to ensure proper format
+      const encodedKey = base58encode(decodedBytes);
+      console.log('Fee collector key validation:');
+      console.log('Original length:', feeCollectorPrivateKey.length);
+      console.log('Decoded length:', decodedBytes.length);
+      console.log('Re-encoded length:', encodedKey.length);
       
-      // Convert to Uint8Array explicitly
-      const secretKey = new Uint8Array(feeCollectorPrivateKeyBytes);
-      if (secretKey.length !== 64) {
-        console.error('Invalid fee collector secret key length:', secretKey.length);
-        throw new Error(`Invalid fee collector private key length: ${secretKey.length} (expected 64)`);
-      }
-      
+      // Create keypair using decoded bytes
+      const secretKey = new Uint8Array(decodedBytes);
       feeCollectorKeypair = Keypair.fromSecretKey(secretKey);
       console.log('Successfully created fee collector keypair');
       console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
     } catch (error) {
-      console.error('Error creating fee collector keypair:', error);
-      console.error('Fee collector private key format:', {
-        length: feeCollectorPrivateKey.length,
-        format: 'base58',
-        isBase58Valid: base58Regex.test(feeCollectorPrivateKey)
+      console.error('Error processing fee collector private key:', error);
+      console.error('Key details:', {
+        originalLength: feeCollectorPrivateKey.length,
+        isBase58: /^[1-9A-HJ-NP-Za-km-z]+$/.test(feeCollectorPrivateKey)
       });
-      throw new Error('Failed to create fee collector keypair: Invalid fee collector private key format');
+      throw new Error('Invalid fee collector private key format');
     }
 
     // Calculate rent and minimum balances
