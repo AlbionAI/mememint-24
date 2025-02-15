@@ -16,6 +16,8 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Starting token creation process...');
+    
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -23,9 +25,11 @@ serve(async (req) => {
 
     // Get request body
     const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = await req.json()
+    console.log('Received parameters:', { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress });
 
     // Validate required fields
     if (!tokenName || !tokenSymbol || !decimals || !initialSupply || !ownerAddress) {
+      console.error('Missing required fields:', { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress });
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -39,13 +43,21 @@ serve(async (req) => {
     }
 
     // Initialize Solana connection
+    console.log('Initializing Solana connection...');
     const connection = new Connection("https://api.mainnet-beta.solana.com")
     
     // Get private key from environment
-    const secretKey = Uint8Array.from(JSON.parse(Deno.env.get('SOLANA_PRIVATE_KEY') ?? '[]'))
-    const payer = Keypair.fromSecretKey(secretKey)
+    const secretKey = Deno.env.get('SOLANA_PRIVATE_KEY');
+    if (!secretKey) {
+      console.error('SOLANA_PRIVATE_KEY not found in environment variables');
+      throw new Error('SOLANA_PRIVATE_KEY not configured');
+    }
+
+    console.log('Creating keypair from secret key...');
+    const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(secretKey)));
 
     // Create mint
+    console.log('Creating mint...');
     const mint = await createMint(
       connection,
       payer,
@@ -54,8 +66,10 @@ serve(async (req) => {
       decimals
     )
     const mintAddress = mint.toBase58()
+    console.log('Mint created:', mintAddress);
 
     // Create token account for owner
+    console.log('Creating token account for owner:', ownerAddress);
     const ownerPublicKey = new PublicKey(ownerAddress)
     const tokenAccount = await getOrCreateAssociatedTokenAccount(
       connection,
@@ -65,6 +79,7 @@ serve(async (req) => {
     )
 
     // Mint initial supply to owner
+    console.log('Minting initial supply:', initialSupply);
     await mintTo(
       connection,
       payer,
@@ -75,6 +90,7 @@ serve(async (req) => {
     )
 
     // Store token details in Supabase
+    console.log('Storing token details in Supabase...');
     const { data, error } = await supabaseClient
       .from('tokens')
       .insert([{
@@ -84,8 +100,12 @@ serve(async (req) => {
         owner_address: ownerAddress
       }])
 
-    if (error) throw error
+    if (error) {
+      console.error('Supabase insert error:', error);
+      throw error;
+    }
 
+    console.log('Token creation completed successfully');
     return new Response(
       JSON.stringify({ success: true, mintAddress }),
       { 
@@ -94,9 +114,19 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error:', error.message)
+    console.error('Error in create-token function:', error);
+    console.error('Error details:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        details: error.stack 
+      }),
       { 
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

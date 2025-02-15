@@ -63,11 +63,15 @@ export const TokenConfig = () => {
       // Upload logo if exists
       let logoUrl = null;
       if (tokenData.logo) {
+        console.log('Uploading logo...');
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('token-logos')
           .upload(`${Date.now()}-${tokenData.logo.name}`, tokenData.logo);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Logo upload error:', uploadError);
+          throw uploadError;
+        }
         
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -77,7 +81,7 @@ export const TokenConfig = () => {
         logoUrl = publicUrl;
       }
 
-      // Create token
+      console.log('Creating token...');
       const { data: tokenResponse, error } = await supabase.functions.invoke('create-token', {
         body: {
           tokenName: tokenData.name,
@@ -88,12 +92,17 @@ export const TokenConfig = () => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Token creation error:', error);
+        throw error;
+      }
 
       if (!tokenResponse.success) {
+        console.error('Token creation failed:', tokenResponse);
         throw new Error(tokenResponse.error || 'Failed to create token');
       }
 
+      console.log('Updating token details in database...');
       // Update token details in database
       const { error: dbError } = await supabase
         .from('tokens')
@@ -107,7 +116,10 @@ export const TokenConfig = () => {
         })
         .eq('mint_address', tokenResponse.mintAddress);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database update error:', dbError);
+        throw dbError;
+      }
 
       toast.success('Token created successfully!', {
         description: `Mint address: ${tokenResponse.mintAddress}`
@@ -136,8 +148,18 @@ export const TokenConfig = () => {
 
     } catch (err) {
       console.error('Error creating token:', err);
+      let errorMessage = 'Unknown error occurred';
+      
+      if (err instanceof Error) {
+        errorMessage = err.message;
+        // If the error message contains technical details, try to make it more user-friendly
+        if (errorMessage.includes('insufficient funds')) {
+          errorMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
+        }
+      }
+      
       toast.error('Failed to create token', {
-        description: err instanceof Error ? err.message : 'Unknown error occurred'
+        description: errorMessage
       });
     } finally {
       setIsCreating(false);
