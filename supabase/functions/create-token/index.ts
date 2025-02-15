@@ -44,10 +44,10 @@ serve(async (req) => {
     }
 
     const { 
-      tokenName, 
-      tokenSymbol, 
+      name: tokenName, 
+      symbol: tokenSymbol, 
       decimals, 
-      initialSupply, 
+      totalSupply: initialSupply, 
       ownerAddress,
       modifyCreator,
       revokeFreeze,
@@ -55,7 +55,19 @@ serve(async (req) => {
       revokeUpdate
     } = parsedBody;
     
-    if (!tokenName || !tokenSymbol || !decimals || !initialSupply || !ownerAddress) {
+    console.log('Parsed token params:', {
+      tokenName,
+      tokenSymbol,
+      decimals,
+      initialSupply,
+      ownerAddress,
+      modifyCreator,
+      revokeFreeze,
+      revokeMint,
+      revokeUpdate
+    });
+
+    if (!tokenName || !tokenSymbol || decimals === undefined || !initialSupply || !ownerAddress) {
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -80,6 +92,7 @@ serve(async (req) => {
     if (revokeUpdate) totalFee += OPTION_FEE;
 
     const connection = new Connection("https://api.mainnet-beta.solana.com");
+    console.log('Owner address:', ownerAddress);
     const owner = new PublicKey(ownerAddress);
     
     // Create a new keypair from the fee collector's private key
@@ -88,102 +101,109 @@ serve(async (req) => {
       throw new Error('Fee collector private key not found');
     }
     
-    // Convert the base58 private key to Uint8Array
-    const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
-    const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
-    const feeCollector = feeCollectorKeypair.publicKey;
-    
-    // Calculate rent for mint
-    const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
-    
-    // Generate a new mint keypair
-    const mintKeypair = Keypair.generate();
-    
-    // Create transaction
-    const transaction = new Transaction();
-    
-    // Add fee transfer instruction
-    transaction.add(
-      SystemProgram.transfer({
-        fromPubkey: owner,
-        toPubkey: feeCollector,
-        lamports: totalFee * 1e9 // Convert SOL to lamports
-      })
-    );
-    
-    // Add create account instruction
-    transaction.add(
-      SystemProgram.createAccount({
-        fromPubkey: owner,
-        newAccountPubkey: mintKeypair.publicKey,
-        space: MINT_SIZE,
-        lamports: rentExemptMint,
-        programId: TOKEN_PROGRAM_ID,
-      })
-    );
-    
-    // Add initialize mint instruction
-    transaction.add(
-      createInitializeMintInstruction(
-        mintKeypair.publicKey,
-        decimals,
+    // Convert the base58 private key to Uint8Array and create keypair
+    try {
+      const feeCollectorPrivateKeyBytes = base58decode(feeCollectorPrivateKey);
+      const feeCollectorKeypair = Keypair.fromSecretKey(feeCollectorPrivateKeyBytes);
+      const feeCollector = feeCollectorKeypair.publicKey;
+      console.log('Fee collector public key:', feeCollector.toBase58());
+
+      // Calculate rent for mint
+      const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
+      
+      // Generate a new mint keypair
+      const mintKeypair = Keypair.generate();
+      
+      // Create transaction
+      const transaction = new Transaction();
+      
+      // Add fee transfer instruction
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: owner,
+          toPubkey: feeCollector,
+          lamports: totalFee * 1e9 // Convert SOL to lamports
+        })
+      );
+      
+      // Add create account instruction
+      transaction.add(
+        SystemProgram.createAccount({
+          fromPubkey: owner,
+          newAccountPubkey: mintKeypair.publicKey,
+          space: MINT_SIZE,
+          lamports: rentExemptMint,
+          programId: TOKEN_PROGRAM_ID,
+        })
+      );
+      
+      // Add initialize mint instruction
+      transaction.add(
+        createInitializeMintInstruction(
+          mintKeypair.publicKey,
+          Number(decimals),
+          owner,
+          modifyCreator ? owner : null,
+          TOKEN_PROGRAM_ID
+        )
+      );
+      
+      // Get the token account for the owner
+      const tokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
         owner,
-        modifyCreator ? owner : null,
-        TOKEN_PROGRAM_ID
-      )
-    );
-    
-    // Get the token account for the owner
-    const tokenAccount = await getOrCreateAssociatedTokenAccount(
-      connection,
-      owner,
-      mintKeypair.publicKey,
-      owner,
-      true
-    );
-    
-    // Add mint to instruction
-    transaction.add(
-      mintTo({
-        mint: mintKeypair.publicKey,
-        destination: tokenAccount.address,
-        authority: owner,
-        amount: initialSupply * Math.pow(10, decimals)
-      })
-    );
+        mintKeypair.publicKey,
+        owner,
+        true
+      );
+      
+      // Add mint to instruction
+      transaction.add(
+        mintTo({
+          mint: mintKeypair.publicKey,
+          destination: tokenAccount.address,
+          authority: owner,
+          amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
+        })
+      );
 
-    // Record fee in database
-    const { error: dbError } = await supabaseClient
-      .from('token_fees')
-      .insert({
-        token_mint_address: mintKeypair.publicKey.toBase58(),
-        base_fee: BASE_FEE,
-        modify_creator_fee: modifyCreator ? OPTION_FEE : 0,
-        revoke_freeze_fee: revokeFreeze ? OPTION_FEE : 0,
-        revoke_mint_fee: revokeMint ? OPTION_FEE : 0,
-        revoke_update_fee: revokeUpdate ? OPTION_FEE : 0,
-        total_fee: totalFee
-      });
+      // Record fee in database
+      const { error: dbError } = await supabaseClient
+        .from('token_fees')
+        .insert({
+          token_mint_address: mintKeypair.publicKey.toBase58(),
+          base_fee: BASE_FEE,
+          modify_creator_fee: modifyCreator ? OPTION_FEE : 0,
+          revoke_freeze_fee: revokeFreeze ? OPTION_FEE : 0,
+          revoke_mint_fee: revokeMint ? OPTION_FEE : 0,
+          revoke_update_fee: revokeUpdate ? OPTION_FEE : 0,
+          total_fee: totalFee
+        });
 
-    if (dbError) {
-      console.error('Error recording fee:', dbError);
-      // Continue with transaction even if fee recording fails
-    }
-
-    // Return the serialized transaction for signing
-    const serializedTransaction = transaction.serialize();
-    
-    return new Response(
-      JSON.stringify({
-        success: true,
-        transaction: serializedTransaction,
-        mintAddress: mintKeypair.publicKey.toBase58(),
-        totalFee
-      }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      if (dbError) {
+        console.error('Error recording fee:', dbError);
+        // Continue with transaction even if fee recording fails
       }
-    );
+
+      // Serialize and return the transaction
+      const serializedTransaction = Buffer.from(transaction.serialize()).toString('base64');
+      
+      return new Response(
+        JSON.stringify({
+          success: true,
+          transaction: serializedTransaction,
+          mintAddress: mintKeypair.publicKey.toBase58(),
+          totalFee
+        }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+
+    } catch (error) {
+      console.error('Error in transaction creation:', error);
+      throw error; // Re-throw to be caught by outer try-catch
+    }
 
   } catch (error) {
     console.error('Error:', error);
