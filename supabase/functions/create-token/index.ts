@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair } from 'https://esm.sh/@solana/web3.js'
+import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from 'https://esm.sh/@solana/spl-token'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 
@@ -113,12 +113,24 @@ serve(async (req) => {
     console.log('Token Creator public key:', tokenCreatorKeypair.publicKey.toBase58());
     console.log('Fee Collector public key:', feeCollectorKeypair.publicKey.toBase58());
 
-    // Calculate rent for mint
+    // Calculate all the required rent and fees
     const rentExemptMint = await getMinimumBalanceForRentExemptMint(connection);
-    
-    // Generate a new mint keypair
     const mintKeypair = Keypair.generate();
     
+    // Calculate the minimum balance required for the associated token account
+    const minBalanceForTokenAcc = await connection.getMinimumBalanceForRentExemption(165); // Token account size
+    
+    // Check token creator balance
+    const tokenCreatorBalance = await connection.getBalance(tokenCreatorKeypair.publicKey);
+    const requiredBalance = rentExemptMint + minBalanceForTokenAcc;
+    
+    console.log('Token creator balance:', tokenCreatorBalance / LAMPORTS_PER_SOL, 'SOL');
+    console.log('Required balance:', requiredBalance / LAMPORTS_PER_SOL, 'SOL');
+    
+    if (tokenCreatorBalance < requiredBalance) {
+      throw new Error(`Token creator wallet needs at least ${(requiredBalance / LAMPORTS_PER_SOL).toFixed(4)} SOL for rent exemption`);
+    }
+
     // Create two separate transactions
     
     // 1. Fee payment transaction (to be signed by owner)
@@ -126,15 +138,15 @@ serve(async (req) => {
     feeTransaction.add(
       SystemProgram.transfer({
         fromPubkey: owner,
-        toPubkey: feeCollectorKeypair.publicKey, // Send fee to fee collector
-        lamports: totalFee * 1e9 // Convert SOL to lamports
+        toPubkey: feeCollectorKeypair.publicKey,
+        lamports: totalFee * LAMPORTS_PER_SOL
       })
     );
     
     // 2. Token creation transaction (to be signed by token creator)
     const tokenTransaction = new Transaction();
     
-    // Add create account instruction
+    // Add create account instruction for the mint
     tokenTransaction.add(
       SystemProgram.createAccount({
         fromPubkey: tokenCreatorKeypair.publicKey,
@@ -156,20 +168,22 @@ serve(async (req) => {
       )
     );
     
-    // Get the token account for the owner
-    const tokenAccount = await getOrCreateAssociatedTokenAccount(
+    // Create associated token account for the owner
+    const associatedTokenAddress = await getOrCreateAssociatedTokenAccount(
       connection,
-      tokenCreatorKeypair,
-      mintKeypair.publicKey,
-      owner,
-      true
+      tokenCreatorKeypair, // payer
+      mintKeypair.publicKey, // mint
+      owner, // owner
+      true // allowOwnerOffCurve
     );
+    
+    console.log('Associated token account created:', associatedTokenAddress.address.toBase58());
     
     // Add mint to instruction
     tokenTransaction.add(
       mintTo({
         mint: mintKeypair.publicKey,
-        destination: tokenAccount.address,
+        destination: associatedTokenAddress.address,
         authority: tokenCreatorKeypair.publicKey,
         amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
       })
