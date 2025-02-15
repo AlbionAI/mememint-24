@@ -32,7 +32,16 @@ serve(async (req) => {
       parsedBody = JSON.parse(requestBody);
     } catch (parseError) {
       console.error('Error parsing request body:', parseError);
-      throw new Error('Invalid JSON in request body');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid JSON in request body' 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = parsedBody;
@@ -67,7 +76,16 @@ serve(async (req) => {
     const secretKey = Deno.env.get('SOLANA_PRIVATE_KEY');
     if (!secretKey) {
       console.error('SOLANA_PRIVATE_KEY not found in environment variables');
-      throw new Error('SOLANA_PRIVATE_KEY not configured');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'SOLANA_PRIVATE_KEY not configured' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     console.log('Creating keypair from secret key...');
@@ -77,7 +95,16 @@ serve(async (req) => {
       console.log('Payer public key:', payer.publicKey.toString());
     } catch (keypairError) {
       console.error('Error creating keypair:', keypairError);
-      throw new Error('Invalid SOLANA_PRIVATE_KEY format');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid SOLANA_PRIVATE_KEY format' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Create mint with detailed logging
@@ -94,7 +121,16 @@ serve(async (req) => {
       console.log('Mint created successfully:', mint.toBase58());
     } catch (mintError) {
       console.error('Error creating mint:', mintError);
-      throw mintError;
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: mintError instanceof Error ? mintError.message : 'Failed to create mint' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const mintAddress = mint.toBase58();
@@ -113,7 +149,16 @@ serve(async (req) => {
       console.log('Token account created:', tokenAccount.address.toBase58());
     } catch (tokenAccountError) {
       console.error('Error creating token account:', tokenAccountError);
-      throw tokenAccountError;
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: tokenAccountError instanceof Error ? tokenAccountError.message : 'Failed to create token account' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Mint initial supply with detailed logging
@@ -130,7 +175,16 @@ serve(async (req) => {
       console.log('Initial supply minted successfully');
     } catch (mintToError) {
       console.error('Error minting initial supply:', mintToError);
-      throw mintToError;
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: mintToError instanceof Error ? mintToError.message : 'Failed to mint initial supply' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Store token details in Supabase with detailed logging
@@ -146,7 +200,16 @@ serve(async (req) => {
 
     if (dbError) {
       console.error('Supabase insert error:', dbError);
-      throw dbError;
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Failed to store token details' 
+        }),
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     console.log('Token creation completed successfully');
@@ -172,8 +235,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
-        details: error.stack 
+        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        details: error instanceof Error ? error.stack : undefined
       }),
       { 
         status: 500,
