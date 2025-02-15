@@ -1,5 +1,12 @@
+
+import { Buffer } from 'buffer';
+globalThis.Buffer = Buffer;
+
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 
-createRoot(document.getElementById("root")!).render(<App />);
+// This fixes the "Buffer is not defined" error
+window.Buffer = Buffer;
+
+createRoot(document.getElementById("root")!).render(<App />)
