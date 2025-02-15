@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { Connection, PublicKey, Transaction, SystemProgram, sendAndConfirmTransaction, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
-import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from 'https://esm.sh/@solana/spl-token'
+import { createMint, getOrCreateAssociatedTokenAccount, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from 'https://esm.sh/@solana/spl-token'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 
 const corsHeaders = {
@@ -118,7 +118,7 @@ serve(async (req) => {
     const mintKeypair = Keypair.generate();
     
     // Calculate the minimum balance required for the associated token account
-    const minBalanceForTokenAcc = await connection.getMinimumBalanceForRentExemption(165); // Token account size
+    const minBalanceForTokenAcc = await connection.getMinimumBalanceForRentExemption(165);
     
     // Check token creator balance
     const tokenCreatorBalance = await connection.getBalance(tokenCreatorKeypair.publicKey);
@@ -168,22 +168,33 @@ serve(async (req) => {
       )
     );
     
-    // Create associated token account for the owner
-    const associatedTokenAddress = await getOrCreateAssociatedTokenAccount(
-      connection,
-      tokenCreatorKeypair, // payer
-      mintKeypair.publicKey, // mint
-      owner, // owner
-      true // allowOwnerOffCurve
+    // Get associated token account address
+    const associatedTokenAddress = await PublicKey.findProgramAddress(
+      [
+        owner.toBuffer(),
+        TOKEN_PROGRAM_ID.toBuffer(),
+        mintKeypair.publicKey.toBuffer(),
+      ],
+      ASSOCIATED_TOKEN_PROGRAM_ID
     );
+
+    console.log('Associated token account address:', associatedTokenAddress[0].toBase58());
     
-    console.log('Associated token account created:', associatedTokenAddress.address.toBase58());
+    // Add create associated token account instruction
+    tokenTransaction.add(
+      createAssociatedTokenAccountInstruction(
+        tokenCreatorKeypair.publicKey, // payer
+        associatedTokenAddress[0], // associated token account address
+        owner, // owner
+        mintKeypair.publicKey // mint
+      )
+    );
     
     // Add mint to instruction
     tokenTransaction.add(
       mintTo({
         mint: mintKeypair.publicKey,
-        destination: associatedTokenAddress.address,
+        destination: associatedTokenAddress[0],
         authority: tokenCreatorKeypair.publicKey,
         amount: BigInt(initialSupply) * BigInt(Math.pow(10, Number(decimals)))
       })
