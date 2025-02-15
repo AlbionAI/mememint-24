@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -63,7 +62,7 @@ export const TokenConfig = () => {
       // Upload logo if exists
       let logoUrl = null;
       if (tokenData.logo) {
-        console.log('Uploading logo...');
+        console.log('Starting logo upload process...');
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('token-logos')
           .upload(`${Date.now()}-${tokenData.logo.name}`, tokenData.logo);
@@ -73,46 +72,45 @@ export const TokenConfig = () => {
           throw new Error(`Failed to upload logo: ${uploadError.message}`);
         }
         
-        // Get public URL
         const { data: { publicUrl } } = supabase.storage
           .from('token-logos')
           .getPublicUrl(uploadData.path);
           
         logoUrl = publicUrl;
+        console.log('Logo uploaded successfully:', logoUrl);
       }
 
-      console.log('Creating token with params:', {
+      const createTokenParams = {
         tokenName: tokenData.name,
         tokenSymbol: tokenData.symbol,
         decimals: parseInt(tokenData.decimals),
         initialSupply: parseInt(tokenData.totalSupply.replace(/,/g, '')),
         ownerAddress: publicKey.toString()
+      };
+
+      console.log('Attempting to create token with params:', createTokenParams);
+
+      const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
+        body: createTokenParams
       });
 
-      const { data: tokenResponse, error } = await supabase.functions.invoke('create-token', {
-        body: {
-          tokenName: tokenData.name,
-          tokenSymbol: tokenData.symbol,
-          decimals: parseInt(tokenData.decimals),
-          initialSupply: parseInt(tokenData.totalSupply.replace(/,/g, '')),
-          ownerAddress: publicKey.toString()
-        }
-      });
+      console.log('Raw token creation response:', tokenResponse);
+      console.log('Function error if any:', functionError);
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(`Edge function error: ${error.message}`);
+      if (functionError) {
+        console.error('Edge function error:', functionError);
+        throw new Error(`Edge function error: ${functionError.message}`);
       }
 
-      if (!tokenResponse.success) {
+      if (!tokenResponse || !tokenResponse.success) {
         console.error('Token creation failed:', tokenResponse);
-        throw new Error(tokenResponse.error || 'Failed to create token');
+        throw new Error(tokenResponse?.error || 'Failed to create token');
       }
 
       console.log('Token created successfully:', tokenResponse);
 
-      console.log('Updating token details in database...');
       // Update token details in database
+      console.log('Updating token details in database...');
       const { error: dbError } = await supabase
         .from('tokens')
         .update({
@@ -156,21 +154,19 @@ export const TokenConfig = () => {
       setCurrentStep(1);
 
     } catch (err) {
-      console.error('Error creating token:', err);
+      console.error('Full error details:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      
       let errorMessage = 'Unknown error occurred';
       
       if (err instanceof Error) {
         errorMessage = err.message;
-        // If the error message contains technical details, try to make it more user-friendly
         if (errorMessage.includes('insufficient funds')) {
           errorMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
         }
-        // Log the full error details for debugging
-        console.error('Full error details:', {
-          message: err.message,
-          stack: err.stack,
-          name: err.name
-        });
       }
       
       toast.error('Failed to create token', {
