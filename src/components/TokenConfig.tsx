@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -24,7 +25,7 @@ export const TokenConfig = () => {
     totalSupply: "1000000000",
     description: "",
     
-    // Social Details
+    // Optional Social Details
     website: "",
     twitter: "",
     telegram: "",
@@ -41,7 +42,6 @@ export const TokenConfig = () => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       
-      // Basic validation
       if (!file.type.startsWith('image/')) {
         toast.error('Please upload an image file');
         return;
@@ -54,6 +54,12 @@ export const TokenConfig = () => {
   const handleCreateToken = async () => {
     if (!publicKey) {
       toast.error('Please connect your wallet first');
+      return;
+    }
+
+    // Validate required fields
+    if (!tokenData.name || !tokenData.symbol) {
+      toast.error('Token name and symbol are required');
       return;
     }
 
@@ -91,15 +97,14 @@ export const TokenConfig = () => {
       console.log('Attempting to create token with params:', createTokenParams);
 
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
-        body: createTokenParams
+        body: JSON.stringify(createTokenParams)  // Make sure we're stringifying the body
       });
 
       console.log('Raw token creation response:', tokenResponse);
-      console.log('Function error if any:', functionError);
-
+      
       if (functionError) {
         console.error('Edge function error:', functionError);
-        throw new Error(`Edge function error: ${functionError.message}`);
+        throw new Error(`Failed to create token: ${functionError.message}`);
       }
 
       if (!tokenResponse || !tokenResponse.success) {
@@ -107,29 +112,36 @@ export const TokenConfig = () => {
         throw new Error(tokenResponse?.error || 'Failed to create token');
       }
 
-      console.log('Token created successfully:', tokenResponse);
+      // Only update token details if token was created successfully
+      const { mintAddress } = tokenResponse;
 
-      // Update token details in database
-      console.log('Updating token details in database...');
-      const { error: dbError } = await supabase
-        .from('tokens')
-        .update({
-          description: tokenData.description,
-          website: tokenData.website,
-          twitter: tokenData.twitter,
-          telegram: tokenData.telegram,
-          discord: tokenData.discord,
-          logo_url: logoUrl
-        })
-        .eq('mint_address', tokenResponse.mintAddress);
+      // Prepare optional fields object (only include non-empty values)
+      const optionalFields = {
+        ...(tokenData.description ? { description: tokenData.description } : {}),
+        ...(tokenData.website ? { website: tokenData.website } : {}),
+        ...(tokenData.twitter ? { twitter: tokenData.twitter } : {}),
+        ...(tokenData.telegram ? { telegram: tokenData.telegram } : {}),
+        ...(tokenData.discord ? { discord: tokenData.discord } : {}),
+        ...(logoUrl ? { logo_url: logoUrl } : {})
+      };
 
-      if (dbError) {
-        console.error('Database update error:', dbError);
-        throw new Error(`Failed to update token details: ${dbError.message}`);
+      // Only update if there are optional fields to update
+      if (Object.keys(optionalFields).length > 0) {
+        console.log('Updating optional token details...');
+        const { error: dbError } = await supabase
+          .from('tokens')
+          .update(optionalFields)
+          .eq('mint_address', mintAddress);
+
+        if (dbError) {
+          console.warn('Warning: Failed to update optional token details:', dbError);
+          // Don't throw error here as the token was created successfully
+          toast.warning('Token created, but failed to save additional details');
+        }
       }
 
       toast.success('Token created successfully!', {
-        description: `Mint address: ${tokenResponse.mintAddress}`
+        description: `Mint address: ${mintAddress}`
       });
 
       // Reset form
