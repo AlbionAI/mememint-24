@@ -99,12 +99,11 @@ serve(async (req) => {
         )
       );
 
-      // Sign and serialize the transaction
-      const signedTransaction = await transaction.sign(tokenCreatorKeypair, mintKeypair);
-      const serializedTransaction = signedTransaction.serialize();
+      // Sign transaction with both keypairs
+      transaction.sign(tokenCreatorKeypair, mintKeypair);
 
       // Send the transaction
-      const signature = await connection.sendRawTransaction(serializedTransaction, {
+      const signature = await connection.sendRawTransaction(transaction.serialize(), {
         skipPreflight: false,
         preflightCommitment: 'confirmed'
       });
@@ -117,18 +116,14 @@ serve(async (req) => {
 
       console.log('Token created successfully. Signature:', signature);
 
-      // Create response with base64 encoded transaction
-      const response = {
-        success: true,
-        mintAddress: mintKeypair.publicKey.toBase58(),
-        tokenCreatorPublicKey: tokenCreatorKeypair.publicKey.toBase58(),
-        feeCollectorPublicKey: feeCollectorKeypair.publicKey.toBase58(),
-        signature,
-        tokenTransaction: serializedTransaction.toString('base64')
-      };
-
       return new Response(
-        JSON.stringify(response),
+        JSON.stringify({
+          success: true,
+          mintAddress: mintKeypair.publicKey.toBase58(),
+          tokenCreatorPublicKey: tokenCreatorKeypair.publicKey.toBase58(),
+          feeCollectorPublicKey: feeCollectorKeypair.publicKey.toBase58(),
+          signature
+        }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
