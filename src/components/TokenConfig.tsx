@@ -2,7 +2,6 @@
 import { useState } from "react";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "./ui/button";
 import { Card } from "./ui/card";
 import { useToast } from "./ui/use-toast";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
@@ -10,20 +9,54 @@ import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
 import { TokenSocialDetails } from "./token/TokenSocialDetails";
 import { StepTracker } from "./token/StepTracker";
 
+type TokenData = {
+  name: string;
+  symbol: string;
+  logo: File | null;
+  decimals: string;
+  totalSupply: string;
+  description: string;
+  website: string;
+  twitter: string;
+  telegram: string;
+  discord: string;
+  creatorName: string;
+  creatorWebsite: string;
+  modifyCreator: boolean;
+  revokeFreeze: boolean;
+  revokeMint: boolean;
+  revokeUpdate: boolean;
+}
+
 export const TokenConfig = () => {
   const { publicKey } = useWallet();
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState({
+  const [tokenData, setTokenData] = useState<TokenData>({
     name: "",
     symbol: "",
+    logo: null,
+    decimals: "9",
+    totalSupply: "1000000000",
     description: "",
-    supply: "",
     website: "",
     twitter: "",
-    telegram: ""
+    telegram: "",
+    discord: "",
+    creatorName: "",
+    creatorWebsite: "",
+    modifyCreator: true,
+    revokeFreeze: true,
+    revokeMint: true,
+    revokeUpdate: true
   });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setTokenData({ ...tokenData, logo: e.target.files[0] });
+    }
+  };
 
   const handleCreateToken = async () => {
     if (!publicKey) {
@@ -37,24 +70,16 @@ export const TokenConfig = () => {
 
     setIsCreating(true);
     try {
-      const response = await fetch('/api/create-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data, error } = await supabase.functions.invoke('create-token', {
+        body: {
           walletPublicKey: publicKey.toString(),
-          ...formData,
+          ...tokenData,
           addMetadata: true,
           mintAuthority: true
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create token');
-      }
-
-      const result = await response.json();
+      if (error) throw error;
       
       toast({
         title: "Success",
@@ -62,14 +87,23 @@ export const TokenConfig = () => {
       });
       
       // Reset form
-      setFormData({
+      setTokenData({
         name: "",
         symbol: "",
+        logo: null,
+        decimals: "9",
+        totalSupply: "1000000000",
         description: "",
-        supply: "",
         website: "",
         twitter: "",
-        telegram: ""
+        telegram: "",
+        discord: "",
+        creatorName: "",
+        creatorWebsite: "",
+        modifyCreator: true,
+        revokeFreeze: true,
+        revokeMint: true,
+        revokeUpdate: true
       });
       setCurrentStep(1);
       
@@ -90,16 +124,17 @@ export const TokenConfig = () => {
       
       {currentStep === 1 && (
         <TokenBasicDetails
-          formData={formData}
-          setFormData={setFormData}
+          tokenData={tokenData}
+          onTokenDataChange={setTokenData}
           onNext={() => setCurrentStep(2)}
+          handleFileChange={handleFileChange}
         />
       )}
       
       {currentStep === 2 && (
         <TokenSupplyDetails
-          formData={formData}
-          setFormData={setFormData}
+          tokenData={tokenData}
+          onTokenDataChange={setTokenData}
           onBack={() => setCurrentStep(1)}
           onNext={() => setCurrentStep(3)}
         />
@@ -107,11 +142,9 @@ export const TokenConfig = () => {
       
       {currentStep === 3 && (
         <TokenSocialDetails
-          formData={formData}
-          setFormData={setFormData}
+          tokenData={tokenData}
+          onTokenDataChange={setTokenData}
           onBack={() => setCurrentStep(2)}
-          isCreating={isCreating}
-          onSubmit={handleCreateToken}
         />
       )}
     </Card>
