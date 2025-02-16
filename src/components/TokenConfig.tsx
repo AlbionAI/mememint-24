@@ -84,10 +84,11 @@ export const TokenConfig = () => {
         mintAuthority: true
       };
       
-      console.log('Sending request to:', `${BACKEND_URL}/api/create-token`);
+      const apiUrl = `${BACKEND_URL}/api/create-token`;
+      console.log('Sending request to:', apiUrl);
       console.log('Request body:', requestBody);
 
-      const response = await fetch(`${BACKEND_URL}/api/create-token`, {
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
