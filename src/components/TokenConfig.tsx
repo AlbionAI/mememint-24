@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -7,7 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection } from '@solana/web3.js';
+import { Transaction, Connection, VersionedTransaction } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -104,28 +105,51 @@ export const TokenConfig = () => {
       }
 
       // Create connection to Solana
-      const connection = new Connection("https://api.mainnet-beta.solana.com");
+      const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
 
-      // Convert base64 to Uint8Array
-      const transactionBytes = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
-      
-      // Reconstruct transaction from bytes
-      const reconstructedTransaction = Transaction.from(transactionBytes);
-      console.log('Transaction reconstructed:', reconstructedTransaction);
+      try {
+        // Convert base64 to Uint8Array
+        const transactionBytes = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
+        console.log('Transaction bytes:', transactionBytes);
 
-      const signedTransaction = await signTransaction(reconstructedTransaction);
-      console.log('Transaction signed successfully');
+        // Try to reconstruct as a versioned transaction first
+        let transaction;
+        try {
+          transaction = VersionedTransaction.deserialize(transactionBytes);
+          console.log('Reconstructed as VersionedTransaction');
+        } catch (e) {
+          // If that fails, try as a legacy transaction
+          transaction = Transaction.from(transactionBytes);
+          console.log('Reconstructed as Legacy Transaction');
+        }
+        
+        console.log('Transaction reconstructed:', transaction);
 
-      // Send and confirm the transaction
-      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-      console.log('Transaction sent, signature:', signature);
+        // Sign the transaction
+        const signedTransaction = await signTransaction(transaction);
+        console.log('Transaction signed successfully');
 
-      // Wait for confirmation with explicit commitment
-      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-      console.log('Transaction confirmation:', confirmation);
+        // Send the transaction
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        console.log('Transaction sent, signature:', signature);
 
-      if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        // Wait for confirmation with explicit confirmation level
+        const latestBlockhash = await connection.getLatestBlockhash();
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash: latestBlockhash.blockhash,
+          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+        });
+        
+        console.log('Transaction confirmation:', confirmation);
+
+        if (confirmation.value.err) {
+          throw new Error(`Transaction failed: ${confirmation.value.err}`);
+        }
+
+      } catch (error) {
+        console.error('Transaction processing error:', error);
+        throw new Error(`Failed to process transaction: ${error.message}`);
       }
 
       // Store token details in Supabase
