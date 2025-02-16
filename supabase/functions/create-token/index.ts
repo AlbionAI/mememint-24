@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 // Use pure JavaScript implementation by adding ?target=es2022&deno-std=0.177.0
 import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'https://esm.sh/@solana/web3.js@1.87.6?target=es2022&deno-std=0.177.0'
-import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11?target=es2022'
+import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11?target=es2022&deno-std=0.177.0'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 import { decode as base64decode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
@@ -81,7 +81,7 @@ serve(async (req) => {
           fromPubkey: ownerPublicKey,
           newAccountPubkey: mintKeypair.publicKey,
           space: MINT_SIZE,
-          lamports: rentRequired,
+          lamports: Number(rentRequired), // Ensure rentRequired is converted to Number
           programId: TOKEN_PROGRAM_ID
         })
       );
@@ -98,11 +98,12 @@ serve(async (req) => {
       );
 
       // Sign with mint account
-      transaction.sign(mintKeypair);
+      transaction.partialSign(mintKeypair); // Use partialSign instead of sign
 
       // Serialize the transaction
       const serializedTransaction = transaction.serialize({
-        requireAllSignatures: false
+        requireAllSignatures: false,
+        verifySignatures: false
       });
 
       const base64Transaction = base64encode(serializedTransaction);
@@ -127,6 +128,8 @@ serve(async (req) => {
       if (error instanceof Error) {
         if (error.message.includes('MethodNotFound')) {
           throw new Error('RPC method not supported. Please check your RPC endpoint configuration.');
+        } else if (error.message.includes('bigint')) {
+          throw new Error('Numeric conversion error. Please check the transaction amounts.');
         }
         throw error;
       }
