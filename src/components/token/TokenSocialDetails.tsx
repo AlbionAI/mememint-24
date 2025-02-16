@@ -21,12 +21,16 @@ interface TokenSocialDetailsProps {
   };
   onTokenDataChange: (data: any) => void;
   onBack: () => void;
+  handleCreateToken: () => Promise<void>;
+  isCreating: boolean;
 }
 
 export const TokenSocialDetails = ({
   tokenData,
   onTokenDataChange,
-  onBack
+  onBack,
+  handleCreateToken,
+  isCreating
 }: TokenSocialDetailsProps) => {
   // Enable all switches by default when component mounts
   useEffect(() => {
@@ -207,8 +211,10 @@ export const TokenSocialDetails = ({
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+            onClick={handleCreateToken}
+            disabled={isCreating}
           >
-            Create Token
+            {isCreating ? "Creating..." : "Create Token"}
           </Button>
         </div>
       </div>

@@ -171,6 +171,8 @@ export const TokenConfig = () => {
           tokenData={tokenData}
           onTokenDataChange={setTokenData}
           onBack={() => setCurrentStep(2)}
+          handleCreateToken={handleCreateToken}
+          isCreating={isCreating}
         />
       )}
     </Card>
