@@ -79,7 +79,14 @@ export const TokenConfig = () => {
       }
 
       // Create token parameters
-      console.log('Creating token...');
+      console.log('Creating token with parameters:', {
+        tokenName: tokenData.name,
+        tokenSymbol: tokenData.symbol,
+        decimals: Number(tokenData.decimals),
+        initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
+        ownerAddress: publicKey.toString()
+      });
+
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
         body: JSON.stringify({
           tokenName: tokenData.name,
@@ -91,63 +98,99 @@ export const TokenConfig = () => {
       });
 
       if (functionError || !tokenResponse?.success) {
+        console.error('Token creation function error:', functionError || tokenResponse?.error);
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
+      console.log('Token creation response:', tokenResponse);
+
       // Get RPC URL
       const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
-      if (rpcError) throw new Error('Failed to get RPC URL');
+      if (rpcError) {
+        console.error('RPC URL fetch error:', rpcError);
+        throw new Error('Failed to get RPC URL');
+      }
 
       const connection = new Connection(rpcUrl, 'confirmed');
 
       try {
         console.log('Processing transaction...');
         
-        // Decode base64 transaction using browser's atob
+        // Decode base64 transaction
         const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         const transaction = Transaction.from(transactionBuffer);
+        
+        console.log('Transaction details:', {
+          feePayer: transaction.feePayer?.toString(),
+          recentBlockhash: transaction.recentBlockhash,
+          instructions: transaction.instructions.length
+        });
 
         // Update blockhash
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
+        console.log('Updated blockhash:', blockhash);
 
         // Sign transaction
         console.log('Requesting wallet signature...');
-        const signedTransaction = await signTransaction(transaction);
+        let signedTransaction;
+        try {
+          signedTransaction = await signTransaction(transaction);
+          console.log('Transaction signed successfully');
+        } catch (error: any) {
+          console.error('Wallet signing error:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+          });
+          
+          if (error.name === 'WalletSignTransactionError') {
+            if (error.message.includes('User rejected')) {
+              throw new Error('Transaction rejected by user');
+            }
+            throw new Error('Failed to sign transaction. Please try again');
+          }
+          throw error;
+        }
 
         // Send transaction
         console.log('Sending transaction...');
         const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        console.log('Transaction sent:', signature);
 
         // Wait for confirmation
         console.log('Awaiting confirmation...');
         const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
         if (confirmation.value.err) {
+          console.error('Transaction error:', confirmation.value.err);
           throw new Error('Transaction failed on chain');
         }
 
         // Save token metadata
         const { mintAddress } = tokenResponse;
         const metadata = {
+          mint_address: mintAddress,
+          name: tokenData.name,
+          symbol: tokenData.symbol,
+          decimals: Number(tokenData.decimals),
           ...(tokenData.description ? { description: tokenData.description } : {}),
           ...(tokenData.website ? { website: tokenData.website } : {}),
           ...(tokenData.twitter ? { twitter: tokenData.twitter } : {}),
           ...(tokenData.telegram ? { telegram: tokenData.telegram } : {}),
           ...(tokenData.discord ? { discord: tokenData.discord } : {}),
-          ...(logoUrl ? { logo_url: logoUrl } : {})
+          ...(logoUrl ? { logo_url: logoUrl } : {}),
+          owner_address: publicKey.toString(),
+          created_at: new Date().toISOString()
         };
 
-        if (Object.keys(metadata).length > 0) {
-          const { error: dbError } = await supabase
-            .from('tokens')
-            .update(metadata)
-            .eq('mint_address', mintAddress);
+        const { error: dbError } = await supabase
+          .from('tokens')
+          .insert([metadata]);
 
-          if (dbError) {
-            console.warn('Failed to save token metadata:', dbError);
-            toast.warning('Token created, but failed to save additional details');
-          }
+        if (dbError) {
+          console.warn('Failed to save token metadata:', dbError);
+          toast.warning('Token created, but failed to save additional details');
         }
 
         toast.success('Token created successfully!', {
@@ -178,7 +221,13 @@ export const TokenConfig = () => {
       } catch (error: any) {
         console.error('Transaction error:', error);
         if (error.name === 'WalletSignTransactionError') {
-          toast.error('Please approve the transaction in your wallet');
+          if (error.message.includes('User rejected')) {
+            toast.error('Please approve the transaction in your wallet');
+          } else {
+            toast.error('Failed to sign transaction', {
+              description: 'Please try again or use a different wallet'
+            });
+          }
         } else {
           toast.error('Transaction failed', {
             description: error.message || 'Failed to process transaction'
