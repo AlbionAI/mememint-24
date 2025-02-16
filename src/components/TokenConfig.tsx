@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -131,7 +132,20 @@ export const TokenConfig = () => {
       }
 
       toast.loading('Connecting to Solana...', { id: creationToast });
-      const connection = new Connection('https://api.devnet.solana.com');
+      const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url', {
+        method: 'POST' // Add POST method here
+      });
+      
+      if (rpcError) {
+        console.error('RPC URL fetch error:', rpcError);
+        throw new Error('Failed to get RPC URL');
+      }
+
+      const connection = new Connection(rpcUrl, {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 60000
+      });
+
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       console.log('Initial blockhash:', blockhash);
 
