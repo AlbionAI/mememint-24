@@ -63,7 +63,6 @@ serve(async (req) => {
 
       const transaction = new Transaction();
 
-      // Get recent blockhash with finalized commitment
       const { blockhash } = await connection.getLatestBlockhash('finalized');
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = new PublicKey(ownerAddress);
@@ -85,16 +84,13 @@ serve(async (req) => {
         )
       );
 
-      // Partial sign with mint keypair
       transaction.partialSign(mintKeypair);
 
-      // Serialize with verification disabled
       const serializedTransaction = transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false
       });
 
-      // Convert to base64
       const base64Transaction = base64encode(serializedTransaction);
 
       console.log('Transaction created successfully');
@@ -111,7 +107,7 @@ serve(async (req) => {
       );
     } catch (error) {
       console.error('Error creating token:', error);
-      throw new Error(`Failed to create token: ${error.message}`);
+      throw new Error(`Failed to create token: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
   } catch (error) {
@@ -119,7 +115,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       { 
         status: 500,

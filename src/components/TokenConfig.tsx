@@ -109,48 +109,52 @@ export const TokenConfig = () => {
 
       // Create connection to Solana using the provided RPC URL
       const connection = new Connection(rpcUrl, {
-        commitment: 'confirmed',
+        commitment: 'finalized',
         confirmTransactionInitialTimeout: 120000 // Increased timeout
       });
 
       try {
-        // Decode base64 transaction
+        console.log('Decoding transaction...');
         const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         
-        // Create transaction from buffer and prepare it
         const transaction = Transaction.from(transactionBuffer);
-        console.log('Transaction decoded:', transaction);
+        console.log('Transaction decoded successfully');
 
-        // Get fresh blockhash
         const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
         
-        console.log('Requesting transaction signature...');
+        console.log('Requesting wallet signature...');
         const signedTransaction = await signTransaction(transaction);
-        console.log('Transaction signed successfully');
+        console.log('Transaction signed by wallet');
 
-        console.log('Sending transaction...');
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-          skipPreflight: true,
-          maxRetries: 5,
-          preflightCommitment: 'finalized'
-        });
-        console.log('Transaction sent:', signature);
+        console.log('Sending transaction to network...');
+        const signature = await connection.sendRawTransaction(
+          signedTransaction.serialize(),
+          {
+            skipPreflight: true,
+            maxRetries: 5,
+            preflightCommitment: 'finalized'
+          }
+        );
+        console.log('Transaction submitted:', signature);
 
-        // Wait for confirmation
-        console.log('Waiting for confirmation...');
-        const confirmation = await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight
-        }, 'finalized');
-
-        console.log('Confirmation received:', confirmation);
+        console.log('Waiting for transaction confirmation...');
+        const confirmation = await connection.confirmTransaction(
+          {
+            signature,
+            blockhash,
+            lastValidBlockHeight
+          },
+          'finalized'
+        );
 
         if (confirmation.value.err) {
-          throw new Error(`Transaction failed: ${confirmation.value.err}`);
+          console.error('Transaction failed:', confirmation.value.err);
+          throw new Error('Transaction failed on chain');
         }
+
+        console.log('Transaction confirmed successfully');
 
         // Store token details in Supabase
         const { mintAddress } = tokenResponse;
@@ -202,19 +206,22 @@ export const TokenConfig = () => {
 
       } catch (error) {
         console.error('Transaction processing error:', error);
-        throw new Error(`Failed to process transaction: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown transaction error occurred';
+        toast.error('Transaction failed', { description: errorMessage });
+        throw error; // Re-throw to be caught by outer catch block
       }
 
-    } catch (err) {
-      console.error('Full error details:', err);
+    } catch (error) {
+      console.error('Token creation error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
-      let errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      let userMessage = errorMessage;
       if (errorMessage.includes('insufficient funds')) {
-        errorMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
+        userMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
       }
       
       toast.error('Failed to create token', {
-        description: errorMessage
+        description: userMessage
       });
     } finally {
       setIsCreating(false);
