@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -59,6 +60,7 @@ export const TokenConfig = () => {
 
     setIsCreating(true);
     try {
+      // Handle logo upload first if present
       let logoUrl = null;
       if (tokenData.logo) {
         console.log('Uploading logo...');
@@ -76,6 +78,7 @@ export const TokenConfig = () => {
         console.log('Logo uploaded:', logoUrl);
       }
 
+      // Create token parameters
       console.log('Creating token...');
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
         body: JSON.stringify({
@@ -91,6 +94,7 @@ export const TokenConfig = () => {
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
+      // Get RPC URL
       const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
       if (rpcError) throw new Error('Failed to get RPC URL');
 
@@ -99,18 +103,23 @@ export const TokenConfig = () => {
       try {
         console.log('Processing transaction...');
         
+        // Decode base64 transaction using browser's atob
         const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         const transaction = Transaction.from(transactionBuffer);
 
+        // Update blockhash
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
 
+        // Sign transaction
         console.log('Requesting wallet signature...');
         const signedTransaction = await signTransaction(transaction);
 
+        // Send transaction
         console.log('Sending transaction...');
         const signature = await connection.sendRawTransaction(signedTransaction.serialize());
 
+        // Wait for confirmation
         console.log('Awaiting confirmation...');
         const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
@@ -118,6 +127,7 @@ export const TokenConfig = () => {
           throw new Error('Transaction failed on chain');
         }
 
+        // Save token metadata
         const { mintAddress } = tokenResponse;
         const metadata = {
           ...(tokenData.description ? { description: tokenData.description } : {}),
@@ -144,6 +154,7 @@ export const TokenConfig = () => {
           description: `Mint address: ${mintAddress}`
         });
 
+        // Reset form
         setTokenData({
           name: "",
           symbol: "",

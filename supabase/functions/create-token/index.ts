@@ -4,6 +4,7 @@ import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'http
 import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
+import { decode as base64decode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
