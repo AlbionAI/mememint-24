@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -171,8 +170,8 @@ export const TokenConfig = () => {
         const { mintAddress } = tokenResponse;
         const metadata = {
           mint_address: mintAddress,
-          name: tokenData.name,
-          symbol: tokenData.symbol,
+          token_name: tokenData.name,
+          token_symbol: tokenData.symbol,
           decimals: Number(tokenData.decimals),
           ...(tokenData.description ? { description: tokenData.description } : {}),
           ...(tokenData.website ? { website: tokenData.website } : {}),
@@ -186,7 +185,7 @@ export const TokenConfig = () => {
 
         const { error: dbError } = await supabase
           .from('tokens')
-          .insert([metadata]);
+          .insert(metadata);
 
         if (dbError) {
           console.warn('Failed to save token metadata:', dbError);
