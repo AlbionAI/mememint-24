@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -8,7 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection, VersionedTransaction } from '@solana/web3.js';
+import { Transaction, Connection } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -85,11 +84,7 @@ export const TokenConfig = () => {
         tokenSymbol: tokenData.symbol,
         decimals: parseInt(tokenData.decimals),
         initialSupply: parseInt(tokenData.totalSupply.replace(/,/g, '')),
-        ownerAddress: publicKey.toString(),
-        modifyCreator: tokenData.modifyCreator,
-        revokeFreeze: tokenData.revokeFreeze,
-        revokeMint: tokenData.revokeMint,
-        revokeUpdate: tokenData.revokeUpdate
+        ownerAddress: publicKey.toString()
       };
 
       console.log('Attempting to create token with params:', createTokenParams);
@@ -108,114 +103,91 @@ export const TokenConfig = () => {
       const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
 
       try {
-        // Convert base64 to Uint8Array directly using Buffer
-        const transactionBytes = new Uint8Array(
+        // Convert base64 to transaction
+        const transaction = Transaction.from(
           Buffer.from(tokenResponse.transaction, 'base64')
         );
-        console.log('Transaction bytes:', transactionBytes);
-
-        // Try to reconstruct as a legacy transaction first
-        let transaction;
-        try {
-          // Create a new Transaction and populate it with the deserialized message
-          transaction = Transaction.from(transactionBytes);
-          console.log('Reconstructed as Legacy Transaction');
-        } catch (e) {
-          console.error('Failed to reconstruct as legacy transaction:', e);
-          // If legacy transaction reconstruction fails, try versioned transaction
-          try {
-            transaction = VersionedTransaction.deserialize(transactionBytes);
-            console.log('Reconstructed as VersionedTransaction');
-          } catch (ve) {
-            console.error('Failed to reconstruct as versioned transaction:', ve);
-            throw new Error('Failed to reconstruct transaction');
-          }
-        }
 
         console.log('Transaction reconstructed:', transaction);
 
         // Get a recent blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        const { blockhash } = await connection.getLatestBlockhash('confirmed');
         
-        // If it's a legacy transaction, update the blockhash
-        if (transaction instanceof Transaction) {
-          transaction.recentBlockhash = blockhash;
-          transaction.feePayer = publicKey;
-        }
+        // Update the transaction's blockhash
+        transaction.recentBlockhash = blockhash;
+        transaction.feePayer = publicKey;
 
         // Sign the transaction
         const signedTransaction = await signTransaction(transaction);
         console.log('Transaction signed successfully');
 
         // Send the transaction
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        const signature = await connection.sendRawTransaction(
+          signedTransaction.serialize(),
+          { maxRetries: 5 }
+        );
         console.log('Transaction sent, signature:', signature);
 
         // Wait for confirmation
-        const confirmation = await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight
-        });
-        
+        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
         console.log('Transaction confirmation:', confirmation);
 
         if (confirmation.value.err) {
           throw new Error(`Transaction failed: ${confirmation.value.err}`);
         }
 
+        // Store token details in Supabase
+        const { mintAddress } = tokenResponse;
+        const optionalFields = {
+          ...(tokenData.description ? { description: tokenData.description } : {}),
+          ...(tokenData.website ? { website: tokenData.website } : {}),
+          ...(tokenData.twitter ? { twitter: tokenData.twitter } : {}),
+          ...(tokenData.telegram ? { telegram: tokenData.telegram } : {}),
+          ...(tokenData.discord ? { discord: tokenData.discord } : {}),
+          ...(logoUrl ? { logo_url: logoUrl } : {})
+        };
+
+        if (Object.keys(optionalFields).length > 0) {
+          const { error: dbError } = await supabase
+            .from('tokens')
+            .update(optionalFields)
+            .eq('mint_address', mintAddress);
+
+          if (dbError) {
+            console.warn('Warning: Failed to update optional token details:', dbError);
+            toast.warning('Token created, but failed to save additional details');
+          }
+        }
+
+        toast.success('Token created successfully!', {
+          description: `Mint address: ${mintAddress}`
+        });
+
+        // Reset form
+        setTokenData({
+          name: "",
+          symbol: "",
+          logo: null,
+          decimals: "9",
+          totalSupply: "1000000000",
+          description: "",
+          website: "",
+          twitter: "",
+          telegram: "",
+          discord: "",
+          creatorName: "",
+          creatorWebsite: "",
+          modifyCreator: true,
+          revokeFreeze: true,
+          revokeMint: true,
+          revokeUpdate: true
+        });
+        setCurrentStep(1);
+
       } catch (error) {
         console.error('Transaction processing error:', error);
         throw new Error(`Failed to process transaction: ${error.message}`);
       }
-
-      // Store token details in Supabase
-      const { mintAddress } = tokenResponse;
-      const optionalFields = {
-        ...(tokenData.description ? { description: tokenData.description } : {}),
-        ...(tokenData.website ? { website: tokenData.website } : {}),
-        ...(tokenData.twitter ? { twitter: tokenData.twitter } : {}),
-        ...(tokenData.telegram ? { telegram: tokenData.telegram } : {}),
-        ...(tokenData.discord ? { discord: tokenData.discord } : {}),
-        ...(logoUrl ? { logo_url: logoUrl } : {})
-      };
-
-      if (Object.keys(optionalFields).length > 0) {
-        const { error: dbError } = await supabase
-          .from('tokens')
-          .update(optionalFields)
-          .eq('mint_address', mintAddress);
-
-        if (dbError) {
-          console.warn('Warning: Failed to update optional token details:', dbError);
-          toast.warning('Token created, but failed to save additional details');
-        }
-      }
-
-      toast.success('Token created successfully!', {
-        description: `Mint address: ${mintAddress}`
-      });
-
-      // Reset form
-      setTokenData({
-        name: "",
-        symbol: "",
-        logo: null,
-        decimals: "9",
-        totalSupply: "1000000000",
-        description: "",
-        website: "",
-        twitter: "",
-        telegram: "",
-        discord: "",
-        creatorName: "",
-        creatorWebsite: "",
-        modifyCreator: true,
-        revokeFreeze: true,
-        revokeMint: true,
-        revokeUpdate: true
-      });
-      setCurrentStep(1);
 
     } catch (err) {
       console.error('Full error details:', err);

@@ -16,21 +16,16 @@ serve(async (req) => {
   }
 
   try {
-    const { tokenName, tokenSymbol, decimals, initialSupply } = await req.json();
+    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = await req.json();
     const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
     const feeCollectorPrivateKey = Deno.env.get('FEE_COLLECTOR_PRIVATE_KEY');
     
     console.log('Starting token creation process...');
-    console.log('Token params:', { tokenName, tokenSymbol, decimals, initialSupply });
+    console.log('Token params:', { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress });
     
     // Validate token creator key
     if (!tokenCreatorPrivateKey) {
       throw new Error('SOLANA_PRIVATE_KEY is not set');
-    }
-
-    // Validate fee collector key
-    if (!feeCollectorPrivateKey) {
-      throw new Error('FEE_COLLECTOR_PRIVATE_KEY is not set');
     }
 
     // Create token creator keypair
@@ -42,17 +37,6 @@ serve(async (req) => {
     } catch (error) {
       console.error('Error creating token creator keypair:', error);
       throw new Error(`Failed to create token creator keypair: ${error.message}`);
-    }
-
-    // Create fee collector keypair
-    let feeCollectorKeypair: Keypair;
-    try {
-      const decodedCollectorKey = base58decode(feeCollectorPrivateKey);
-      feeCollectorKeypair = Keypair.fromSecretKey(decodedCollectorKey);
-      console.log('Fee collector public key:', feeCollectorKeypair.publicKey.toBase58());
-    } catch (error) {
-      console.error('Error creating fee collector keypair:', error);
-      throw new Error(`Failed to create fee collector keypair: ${error.message}`);
     }
 
     // Initialize connection to Solana
@@ -78,13 +62,14 @@ serve(async (req) => {
       const transaction = new Transaction();
 
       // Get the latest blockhash
-      const { blockhash } = await connection.getLatestBlockhash();
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
       transaction.recentBlockhash = blockhash;
-      transaction.feePayer = tokenCreatorKeypair.publicKey;
+      transaction.feePayer = new PublicKey(ownerAddress);
 
+      // Add instructions to create and initialize the token mint
       transaction.add(
         SystemProgram.createAccount({
-          fromPubkey: tokenCreatorKeypair.publicKey,
+          fromPubkey: new PublicKey(ownerAddress),
           newAccountPubkey: mintKeypair.publicKey,
           space: MINT_SIZE,
           lamports,
@@ -93,27 +78,30 @@ serve(async (req) => {
         createInitializeMintInstruction(
           mintKeypair.publicKey,
           decimals,
-          tokenCreatorKeypair.publicKey,
-          null,
+          new PublicKey(ownerAddress),
+          new PublicKey(ownerAddress),
           TOKEN_PROGRAM_ID
         )
       );
 
-      // Sign transaction with both keypairs
-      transaction.sign(tokenCreatorKeypair, mintKeypair);
+      // Partially sign with the mint keypair
+      transaction.partialSign(mintKeypair);
 
-      // Serialize the transaction and encode it as base64
-      const serializedTransaction = transaction.serialize();
+      // Serialize the transaction
+      const serializedTransaction = transaction.serialize({
+        requireAllSignatures: false,
+        verifySignatures: false
+      });
+
+      // Encode as base64
       const base64Transaction = base64encode(serializedTransaction);
 
-      console.log('Transaction created and serialized successfully');
+      console.log('Transaction created successfully');
 
       return new Response(
         JSON.stringify({
           success: true,
           mintAddress: mintKeypair.publicKey.toBase58(),
-          tokenCreatorPublicKey: tokenCreatorKeypair.publicKey.toBase58(),
-          feeCollectorPublicKey: feeCollectorKeypair.publicKey.toBase58(),
           transaction: base64Transaction
         }),
         { 
@@ -130,8 +118,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
-        stack: error.stack
+        error: error.message
       }),
       { 
         status: 500,
