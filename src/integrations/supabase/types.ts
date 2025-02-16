@@ -80,6 +80,7 @@ export type Database = {
       tokens: {
         Row: {
           created_at: string | null
+          decimals: number | null
           description: string | null
           discord: string | null
           id: string
@@ -94,6 +95,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          decimals?: number | null
           description?: string | null
           discord?: string | null
           id?: string
@@ -108,6 +110,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          decimals?: number | null
           description?: string | null
           discord?: string | null
           id?: string
