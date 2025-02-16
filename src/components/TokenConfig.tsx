@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -108,6 +109,12 @@ export const TokenConfig = () => {
     try {
       creationToast = toast.loading('Preparing token creation...');
 
+      // Get session for authorization
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        throw new Error(`Session error: ${sessionError.message}`);
+      }
+
       let logoUrl = null;
       if (tokenData.logo) {
         toast.loading('Uploading logo...', { id: creationToast });
@@ -146,7 +153,7 @@ export const TokenConfig = () => {
       toast.loading('Creating token transaction...', { id: creationToast });
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
         headers: {
-          Authorization: `Bearer ${supabase.auth.getSession()?.access_token}`
+          Authorization: `Bearer ${session?.access_token}`
         },
         body: JSON.stringify({
           tokenName: tokenData.name,
