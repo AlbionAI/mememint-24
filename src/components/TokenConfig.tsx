@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -58,11 +59,15 @@ export const TokenConfig = () => {
     }
 
     setIsCreating(true);
+    let creationToast;
+
     try {
+      creationToast = toast.loading('Preparing token creation...');
+
       // Handle logo upload first if present
       let logoUrl = null;
       if (tokenData.logo) {
-        console.log('Uploading logo...');
+        toast.loading('Uploading logo...', { id: creationToast });
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('token-logos')
           .upload(`${Date.now()}-${tokenData.logo.name}`, tokenData.logo);
@@ -78,6 +83,7 @@ export const TokenConfig = () => {
       }
 
       // Get RPC URL first to ensure connection
+      toast.loading('Connecting to Solana...', { id: creationToast });
       const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
       if (rpcError) {
         console.error('RPC URL fetch error:', rpcError);
@@ -89,20 +95,12 @@ export const TokenConfig = () => {
         confirmTransactionInitialTimeout: 60000
       });
 
-      // Get recent blockhash before creating token
+      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       console.log('Initial blockhash:', blockhash);
 
-      // Create token parameters
-      console.log('Creating token with parameters:', {
-        tokenName: tokenData.name,
-        tokenSymbol: tokenData.symbol,
-        decimals: Number(tokenData.decimals),
-        initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
-        ownerAddress: publicKey.toString(),
-        blockhash // Pass blockhash to edge function
-      });
-
+      // Create token
+      toast.loading('Creating token transaction...', { id: creationToast });
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
         body: JSON.stringify({
           tokenName: tokenData.name,
@@ -110,7 +108,7 @@ export const TokenConfig = () => {
           decimals: Number(tokenData.decimals),
           initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
           ownerAddress: publicKey.toString(),
-          blockhash // Include blockhash in request
+          blockhash
         })
       });
 
@@ -122,25 +120,25 @@ export const TokenConfig = () => {
       console.log('Token creation response:', tokenResponse);
 
       try {
-        console.log('Processing transaction...');
+        toast.loading('Please approve the transaction in your wallet...', { id: creationToast });
         
-        // Decode base64 transaction
+        // Decode and process transaction
         const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         const transaction = Transaction.from(transactionBuffer);
         
         console.log('Transaction details:', {
           feePayer: transaction.feePayer?.toString(),
           recentBlockhash: transaction.recentBlockhash,
-          instructions: transaction.instructions.length
+          instructions: transaction.instructions.length,
+          estimatedFees: tokenResponse.estimatedFees
         });
 
         // Sign transaction
-        console.log('Requesting wallet signature...');
         const signedTransaction = await signTransaction(transaction);
         console.log('Transaction signed successfully');
 
         // Send transaction
-        console.log('Sending transaction...');
+        toast.loading('Sending transaction...', { id: creationToast });
         const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
           skipPreflight: false,
           preflightCommitment: 'confirmed',
@@ -149,7 +147,7 @@ export const TokenConfig = () => {
         console.log('Transaction sent:', signature);
 
         // Wait for confirmation
-        console.log('Awaiting confirmation...');
+        toast.loading('Waiting for confirmation...', { id: creationToast });
         const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
         if (confirmation.value.err) {
@@ -158,6 +156,7 @@ export const TokenConfig = () => {
         }
 
         // Save token metadata
+        toast.loading('Saving token details...', { id: creationToast });
         const { mintAddress } = tokenResponse;
         const metadata = {
           mint_address: mintAddress,
@@ -184,6 +183,7 @@ export const TokenConfig = () => {
         }
 
         toast.success('Token created successfully!', {
+          id: creationToast,
           description: `Mint address: ${mintAddress}`
         });
 
@@ -212,14 +212,19 @@ export const TokenConfig = () => {
         console.error('Transaction error:', error);
         if (error.name === 'WalletSignTransactionError') {
           if (error.message.includes('User rejected')) {
-            toast.error('Please approve the transaction in your wallet');
+            toast.error('Transaction cancelled', {
+              id: creationToast,
+              description: 'You declined the transaction in your wallet'
+            });
           } else {
             toast.error('Failed to sign transaction', {
+              id: creationToast,
               description: 'Please try again or use a different wallet'
             });
           }
         } else {
           toast.error('Transaction failed', {
+            id: creationToast,
             description: error.message || 'Failed to process transaction'
           });
         }
@@ -229,8 +234,9 @@ export const TokenConfig = () => {
     } catch (error: any) {
       console.error('Token creation error:', error);
       const errorMessage = error.message || 'Unknown error occurred';
-      if (!errorMessage.includes('Please approve')) {
+      if (!errorMessage.includes('Transaction cancelled')) {
         toast.error('Failed to create token', {
+          id: creationToast,
           description: errorMessage.includes('insufficient funds')
             ? 'Insufficient SOL balance for transaction fees'
             : errorMessage
