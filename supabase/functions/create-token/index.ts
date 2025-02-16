@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { 
   Connection, 
@@ -21,7 +20,9 @@ import {
 import { 
   PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
   createCreateMetadataAccountV3Instruction,
-  DataV2
+  DataV2,
+  createSetAuthorityInstruction,
+  AuthorityType
 } from "./deps.ts";
 import { base64encode } from "./deps.ts";
 
@@ -37,7 +38,24 @@ serve(async (req) => {
 
   try {
     console.log('Starting request processing...');
-    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash, fees } = await req.json();
+    const { 
+      tokenName, 
+      tokenSymbol, 
+      decimals, 
+      initialSupply, 
+      ownerAddress, 
+      blockhash, 
+      fees,
+      // Add new parameters
+      website,
+      twitter,
+      telegram,
+      discord,
+      description,
+      revokeFreeze,
+      revokeMint,
+      revokeUpdate
+    } = await req.json();
     
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
     const feeCollectorAddress = Deno.env.get('FEE_COLLECTOR_ADDRESS');
@@ -100,7 +118,7 @@ serve(async (req) => {
       );
       console.log('Associated token account address:', associatedTokenAddress.toString());
 
-      // Create metadata for the token
+      // Create metadata for the token with social links
       const metadataData: DataV2 = {
         name: tokenName,
         symbol: tokenSymbol,
@@ -108,7 +126,18 @@ serve(async (req) => {
         sellerFeeBasisPoints: 0,
         creators: null,
         collection: null,
-        uses: null
+        uses: null,
+        // Additional metadata that will be stored in the URI JSON
+        properties: {
+          files: [],
+          links: {
+            website: website || "",
+            twitter: twitter || "",
+            telegram: telegram || "",
+            discord: discord || "",
+          },
+          description: description || "",
+        }
       };
 
       const [metadataAddress] = PublicKey.findProgramAddressSync(
@@ -218,6 +247,37 @@ serve(async (req) => {
         createATAIx,
         mintToIx
       );
+
+      // Add authority revocation instructions if requested
+      if (revokeFreeze) {
+        const revokeFreezeIx = createSetAuthorityInstruction(
+          mintKeypair.publicKey,
+          ownerPublicKey,
+          AuthorityType.FreezeAccount,
+          null
+        );
+        transaction.add(revokeFreezeIx);
+      }
+
+      if (revokeMint) {
+        const revokeMintIx = createSetAuthorityInstruction(
+          mintKeypair.publicKey,
+          ownerPublicKey,
+          AuthorityType.MintTokens,
+          null
+        );
+        transaction.add(revokeMintIx);
+      }
+
+      if (revokeUpdate) {
+        const revokeUpdateIx = createSetAuthorityInstruction(
+          metadataAddress,
+          ownerPublicKey,
+          AuthorityType.UpdateMetadata,
+          null
+        );
+        transaction.add(revokeUpdateIx);
+      }
 
       // Partially sign with mint account
       transaction.partialSign(mintKeypair);
