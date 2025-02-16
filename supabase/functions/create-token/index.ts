@@ -4,7 +4,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const allowedOrigins = [
   'https://mememint.co',
   'https://www.mememint.co',
-  'https://mememintco.netlify.app'
+  'https://mememintco.netlify.app',
+  'http://localhost:5173' // Add localhost for development
 ];
 
 const corsHeaders = (origin: string) => ({
@@ -33,6 +34,7 @@ interface CreateTokenRequest {
 }
 
 serve(async (req) => {
+  // Get the origin from the request headers or use the first allowed origin as default
   const origin = req.headers.get('origin') || allowedOrigins[0];
   
   // Handle CORS preflight requests
