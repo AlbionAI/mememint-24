@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -78,26 +77,20 @@ export const TokenConfig = () => {
     try {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
-      // Request airdrop for the user if needed
       const balance = await connection.getBalance(publicKey);
-      if (balance < LAMPORTS_PER_SOL) {
-        const airdropSignature = await connection.requestAirdrop(
-          publicKey,
-          LAMPORTS_PER_SOL
-        );
-        await connection.confirmTransaction(airdropSignature);
+      const minimumBalance = LAMPORTS_PER_SOL / 10; // Require at least 0.1 SOL
+      
+      if (balance < minimumBalance) {
+        toast.error('Insufficient SOL balance. You need at least 0.1 SOL to create a token.');
+        return;
       }
       
-      // Generate a new keypair for the mint
       const mintKeypair = Keypair.generate();
       
-      // Calculate rent-exempt balance
       const rent = await getMinimumBalanceForRentExemptMint(connection);
 
-      // Create single transaction for token creation
       const transaction = new Transaction();
       
-      // Add create account instruction
       transaction.add(
         SystemProgram.createAccount({
           fromPubkey: publicKey,
@@ -108,7 +101,6 @@ export const TokenConfig = () => {
         })
       );
 
-      // Add initialize mint instruction
       transaction.add(
         createInitializeMintInstruction(
           mintKeypair.publicKey,
@@ -119,13 +111,11 @@ export const TokenConfig = () => {
         )
       );
 
-      // Get the associated token account
       const associatedTokenAccount = await getAssociatedTokenAddress(
         mintKeypair.publicKey,
         publicKey
       );
 
-      // Add create associated token account instruction
       transaction.add(
         createAssociatedTokenAccountInstruction(
           publicKey,
@@ -135,7 +125,6 @@ export const TokenConfig = () => {
         )
       );
 
-      // Add mint to instruction
       transaction.add(
         createMintToInstruction(
           mintKeypair.publicKey,
@@ -145,18 +134,14 @@ export const TokenConfig = () => {
         )
       );
 
-      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
-      // Partial sign with the mint account
       transaction.partialSign(mintKeypair);
 
-      // Request wallet signature
       const signedTx = await signTransaction(transaction);
       
-      // Send and confirm transaction
       const txid = await connection.sendRawTransaction(signedTx.serialize());
       const confirmation = await connection.confirmTransaction(txid);
       
