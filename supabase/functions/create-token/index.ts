@@ -6,7 +6,8 @@ import {
   Transaction, 
   SystemProgram, 
   Keypair,
-  LAMPORTS_PER_SOL
+  LAMPORTS_PER_SOL,
+  ComputeBudgetProgram
 } from 'https://esm.sh/@solana/web3.js@1.77.0?target=es2022'
 import { 
   TOKEN_PROGRAM_ID, 
@@ -104,6 +105,24 @@ serve(async (req) => {
       );
       console.log('Associated token account address:', associatedTokenAddress.toString());
 
+      // Create transaction
+      const transaction = new Transaction();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = ownerPublicKey;
+
+      // Add compute unit limit and priority fee instructions
+      const computeUnitLimit = 300000; // Increased compute units
+      const microLamports = 1_000_000; // Priority fee (1 SOL = 1e9 lamports, so this is 0.001 SOL per CU)
+      
+      transaction.add(
+        ComputeBudgetProgram.setComputeUnitLimit({
+          units: computeUnitLimit
+        }),
+        ComputeBudgetProgram.setComputeUnitPrice({
+          microLamports
+        })
+      );
+
       // Create fee transfer instruction
       const feeLamports = fees * LAMPORTS_PER_SOL;
       console.log('Creating fee transfer instruction for', feeLamports, 'lamports');
@@ -112,11 +131,6 @@ serve(async (req) => {
         toPubkey: feeCollectorPublicKey,
         lamports: feeLamports
       });
-
-      // Create transaction
-      const transaction = new Transaction();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = ownerPublicKey;
 
       // Add fee transfer as the first instruction
       transaction.add(feeTransferIx);
