@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -103,11 +104,17 @@ export const TokenConfig = () => {
       const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
 
       try {
-        // Convert base64 to transaction
-        const transaction = Transaction.from(
-          Buffer.from(tokenResponse.transaction, 'base64')
-        );
+        // Convert base64 to Uint8Array using browser API
+        const binaryString = atob(tokenResponse.transaction);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
 
+        console.log('Transaction bytes:', bytes);
+
+        // Create transaction from bytes
+        const transaction = Transaction.from(bytes);
         console.log('Transaction reconstructed:', transaction);
 
         // Get a recent blockhash
