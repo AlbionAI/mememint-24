@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -7,7 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection, VersionedTransaction } from '@solana/web3.js';
+import { Transaction, Connection } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -109,42 +110,43 @@ export const TokenConfig = () => {
       // Create connection to Solana using the provided RPC URL
       const connection = new Connection(rpcUrl, {
         commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 60000
+        confirmTransactionInitialTimeout: 120000 // Increased timeout
       });
 
       try {
-        // Decode the base64 transaction
-        const transactionBuffer = Buffer.from(tokenResponse.transaction, 'base64');
+        // Decode base64 transaction
+        const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         
-        // Create transaction from buffer
+        // Create transaction from buffer and prepare it
         const transaction = Transaction.from(transactionBuffer);
-        console.log('Transaction reconstructed:', transaction);
+        console.log('Transaction decoded:', transaction);
 
-        // Get a recent blockhash
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        
-        // Update the transaction's blockhash
+        // Get fresh blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
-
-        // Sign the transaction
+        
+        console.log('Requesting transaction signature...');
         const signedTransaction = await signTransaction(transaction);
         console.log('Transaction signed successfully');
 
-        // Send the transaction with preflight disabled and maximum retries
+        console.log('Sending transaction...');
         const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
           skipPreflight: true,
           maxRetries: 5,
-          preflightCommitment: 'confirmed'
+          preflightCommitment: 'finalized'
         });
-        console.log('Transaction sent, signature:', signature);
+        console.log('Transaction sent:', signature);
 
-        // Wait for confirmation with extended timeout
-        const confirmation = await connection.confirmTransaction(
-          signature, 
-          'confirmed'
-        );
-        console.log('Transaction confirmation:', confirmation);
+        // Wait for confirmation
+        console.log('Waiting for confirmation...');
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        }, 'finalized');
+
+        console.log('Confirmation received:', confirmation);
 
         if (confirmation.value.err) {
           throw new Error(`Transaction failed: ${confirmation.value.err}`);

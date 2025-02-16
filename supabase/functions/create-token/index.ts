@@ -42,8 +42,8 @@ serve(async (req) => {
     }
 
     const connection = new Connection(rpcUrl, {
-      commitment: 'confirmed',
-      confirmTransactionInitialTimeout: 60000
+      commitment: 'finalized',
+      confirmTransactionInitialTimeout: 120000
     });
     
     try {
@@ -63,8 +63,9 @@ serve(async (req) => {
 
       const transaction = new Transaction();
 
-      const blockhash = await connection.getLatestBlockhash('confirmed');
-      transaction.recentBlockhash = blockhash.blockhash;
+      // Get recent blockhash with finalized commitment
+      const { blockhash } = await connection.getLatestBlockhash('finalized');
+      transaction.recentBlockhash = blockhash;
       transaction.feePayer = new PublicKey(ownerAddress);
 
       transaction.add(
@@ -84,13 +85,16 @@ serve(async (req) => {
         )
       );
 
+      // Partial sign with mint keypair
       transaction.partialSign(mintKeypair);
 
+      // Serialize with verification disabled
       const serializedTransaction = transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false
       });
 
+      // Convert to base64
       const base64Transaction = base64encode(serializedTransaction);
 
       console.log('Transaction created successfully');
