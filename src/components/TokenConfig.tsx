@@ -13,7 +13,8 @@ import {
   SystemProgram, 
   Transaction,
   clusterApiUrl,
-  LAMPORTS_PER_SOL
+  LAMPORTS_PER_SOL,
+  Signer
 } from '@solana/web3.js';
 import { 
   createInitializeMintInstruction,
@@ -79,10 +80,15 @@ export const TokenConfig = () => {
     try {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
+      const walletSigner: Signer = {
+        publicKey,
+        secretKey: Uint8Array.from([]), // Empty since we're using wallet adapter
+      };
+      
       // Create mint account
       const mint = await createMint(
         connection,
-        { publicKey, signTransaction },
+        walletSigner,
         publicKey, // mint authority
         publicKey, // freeze authority (you can use null to disable)
         parseInt(tokenData.decimals)
