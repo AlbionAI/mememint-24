@@ -54,17 +54,14 @@ export const TokenConfig = () => {
     revokeUpdate: true
   });
 
-  // Check and refresh session on component mount
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Try to refresh the session first
         const { error: refreshError } = await supabase.auth.refreshSession();
         if (refreshError) {
           console.error('Error refreshing session:', refreshError);
         }
 
-        // Get the current session
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         console.log('Current session:', currentSession);
         setSession(currentSession);
@@ -75,7 +72,6 @@ export const TokenConfig = () => {
 
     checkSession();
 
-    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       console.log('Auth state changed:', _event, session);
       setSession(session);
@@ -86,6 +82,31 @@ export const TokenConfig = () => {
     };
   }, []);
 
+  const uploadLogo = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('token_logos')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('token_logos')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      return null;
+    }
+  };
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setTokenData({ ...tokenData, logo: e.target.files[0] });
@@ -94,10 +115,8 @@ export const TokenConfig = () => {
 
   const handleCreateToken = async () => {
     console.log('Starting token creation process...');
-    console.log('Backend URL:', BACKEND_URL);
     
     if (!publicKey) {
-      console.log('No wallet connected');
       toast({
         title: "Error",
         description: "Please connect your wallet first",
@@ -106,12 +125,11 @@ export const TokenConfig = () => {
       return;
     }
 
-    // Double check session before proceeding
+    // Check session
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     console.log('Checking current session before request:', currentSession);
 
     if (!currentSession) {
-      console.log('No valid session found');
       toast({
         title: "Error",
         description: "Please sign in to create a token. Your session may have expired.",
@@ -120,24 +138,25 @@ export const TokenConfig = () => {
       return;
     }
 
-    console.log('Wallet connected:', publicKey.toString());
-    console.log('Token data being sent:', tokenData);
-
     setIsCreating(true);
     try {
+      let logoUrl = null;
+      if (tokenData.logo) {
+        logoUrl = await uploadLogo(tokenData.logo);
+        if (!logoUrl) {
+          throw new Error('Failed to upload logo');
+        }
+      }
+
       const requestBody = {
         walletPublicKey: publicKey.toString(),
         ...tokenData,
+        logoUrl,
         addMetadata: true,
         mintAuthority: true
       };
       
-      const apiUrl = `${BACKEND_URL}/create-token`;
-      console.log('Sending request to:', apiUrl);
-      console.log('Request body:', requestBody);
-      console.log('Using access token:', currentSession.access_token);
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`${BACKEND_URL}/create-token`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -146,11 +165,8 @@ export const TokenConfig = () => {
         body: JSON.stringify(requestBody),
       });
 
-      console.log('Response status:', response.status);
-      
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
         throw new Error(`Failed to create token: ${errorText}`);
       }
 
