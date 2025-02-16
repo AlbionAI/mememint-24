@@ -8,7 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection, clusterApiUrl } from '@solana/web3.js';
+import { Transaction, Connection } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -100,8 +100,15 @@ export const TokenConfig = () => {
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
-      // Create connection to Solana using public devnet endpoint
-      const connection = new Connection(clusterApiUrl('mainnet-beta'), {
+      // Get the RPC URL through the edge function
+      const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
+      
+      if (rpcError) {
+        throw new Error('Failed to get RPC URL');
+      }
+
+      // Create connection to Solana using the provided RPC URL
+      const connection = new Connection(rpcUrl, {
         commitment: 'confirmed',
         confirmTransactionInitialTimeout: 60000
       });
