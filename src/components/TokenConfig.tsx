@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -13,8 +12,28 @@ import {
   PublicKey,
   Keypair,
   SystemProgram,
-  LAMPORTS_PER_SOL
+  LAMPORTS_PER_SOL,
+  sendAndConfirmTransaction
 } from '@solana/web3.js';
+import {
+  createMint,
+  getOrCreateAssociatedTokenAccount,
+  mintTo,
+  createSetAuthorityInstruction,
+  AuthorityType,
+} from "@solana/spl-token";
+import {
+  DataV2,
+  createCreateMetadataAccountV3Instruction,
+} from "@metaplex-foundation/mpl-token-metadata";
+import { Metaplex } from "@metaplex-foundation/js";
+import Arweave from 'arweave';
+
+const arweave = Arweave.init({
+  host: 'arweave.net',
+  port: 443,
+  protocol: 'https'
+});
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -98,6 +117,31 @@ export const TokenConfig = () => {
     return fees;
   };
 
+  const uploadToArweave = async (file: File): Promise<string> => {
+    try {
+      const reader = new FileReader();
+      const buffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as ArrayBuffer);
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
+
+      const transaction = await arweave.createTransaction({ data: buffer });
+      transaction.addTag('Content-Type', file.type);
+
+      const wallet = await arweave.wallets.generate();
+      await arweave.transactions.sign(transaction, wallet);
+      
+      const response = await arweave.transactions.post(transaction);
+      if (response.status !== 200) throw new Error('Failed to upload to Arweave');
+
+      return `https://arweave.net/${transaction.id}`;
+    } catch (error) {
+      console.error('Arweave upload error:', error);
+      throw new Error('Failed to upload image to Arweave');
+    }
+  };
+
   const handleCreateToken = async () => {
     if (!publicKey || !signTransaction) {
       toast.error('Please connect your wallet first');
@@ -110,123 +154,162 @@ export const TokenConfig = () => {
     }
 
     setIsCreating(true);
-    let creationToast;
+    let creationToast = toast.loading('Preparing token creation...');
 
     try {
-      creationToast = toast.loading('Preparing token creation...');
-
       // Connect to Solana devnet
       const connection = new Connection('https://api.devnet.solana.com', {
         commitment: 'confirmed',
         confirmTransactionInitialTimeout: 60000
       });
 
-      // Get latest blockhash
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      console.log('Initial blockhash:', blockhash);
+      // Upload logo to Arweave if provided
+      let logoUrl = null;
+      if (tokenData.logo) {
+        toast.loading('Uploading logo to Arweave...', { id: creationToast });
+        logoUrl = await uploadToArweave(tokenData.logo);
+      }
 
-      // Calculate fees
-      const fees = calculateFees();
-      console.log('Calculated fees:', fees);
-
-      // Create a new transaction
-      const transaction = new Transaction({
-        feePayer: publicKey,
-        blockhash: blockhash,
-        lastValidBlockHeight: 100000000
-      });
-
-      // Add transfer instruction for fees
-      const FEE_COLLECTOR_ADDRESS = new PublicKey('YourFeeCollectorAddressHere');
-      transaction.add(
-        SystemProgram.transfer({
-          fromPubkey: publicKey,
-          toPubkey: FEE_COLLECTOR_ADDRESS,
-          lamports: fees * LAMPORTS_PER_SOL
-        })
+      // Create mint account
+      toast.loading('Creating mint account...', { id: creationToast });
+      const mintKeypair = Keypair.generate();
+      const decimals = Number(tokenData.decimals);
+      
+      const lamports = await connection.getMinimumBalanceForRentExemption(82);
+      
+      // Create mint account
+      await createMint(
+        connection,
+        mintKeypair,
+        publicKey,
+        publicKey,
+        decimals
       );
 
-      // Sign and send transaction
-      try {
-        toast.loading('Please approve the transaction in your wallet...', { id: creationToast });
-        
-        // Sign with the user's wallet
-        const signedTransaction = await signTransaction(transaction);
-        console.log('Transaction signed successfully');
+      // Get the token ATA for the user
+      const associatedTokenAccount = await getOrCreateAssociatedTokenAccount(
+        connection,
+        mintKeypair,
+        mintKeypair.publicKey,
+        publicKey
+      );
 
-        // Send transaction
-        toast.loading('Sending transaction...', { id: creationToast });
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
-        
-        // Confirm transaction
-        toast.loading('Confirming transaction...', { id: creationToast });
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+      // Mint initial supply
+      const initialSupply = Number(tokenData.totalSupply.replace(/,/g, ''));
+      await mintTo(
+        connection,
+        mintKeypair,
+        mintKeypair.publicKey,
+        associatedTokenAccount.address,
+        publicKey,
+        initialSupply * (10 ** decimals)
+      );
 
-        if (confirmation.value.err) {
-          throw new Error('Transaction failed on chain');
-        }
+      // Create metadata
+      const metaplex = new Metaplex(connection);
+      
+      const metadataData: DataV2 = {
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        uri: logoUrl || '',
+        sellerFeeBasisPoints: 0,
+        creators: null,
+        collection: null,
+        uses: null
+      };
 
-        // Success!
-        toast.success('Token created successfully!', {
-          id: creationToast,
-          description: `Transaction signature: ${signature}`
-        });
+      const metadataPda = metaplex.nfts().pdas().metadata({ mint: mintKeypair.publicKey });
 
-        // Reset form
-        setTokenData({
-          name: "",
-          symbol: "",
-          logo: null,
-          decimals: "9",
-          totalSupply: "1000000000",
-          description: "",
-          website: "",
-          twitter: "",
-          telegram: "",
-          discord: "",
-          creatorName: "",
-          creatorWebsite: "",
-          modifyCreator: true,
-          revokeFreeze: true,
-          revokeMint: true,
-          revokeUpdate: true
-        });
-        setCurrentStep(1);
-
-      } catch (error: any) {
-        console.error('Transaction error:', error);
-        if (error.name === 'WalletSignTransactionError') {
-          if (error.message.includes('User rejected')) {
-            toast.error('Transaction cancelled', {
-              id: creationToast,
-              description: 'You declined the transaction in your wallet'
-            });
-          } else {
-            toast.error('Failed to sign transaction', {
-              id: creationToast,
-              description: 'Please try again or use a different wallet'
-            });
+      const createMetadataInstruction = createCreateMetadataAccountV3Instruction(
+        {
+          metadata: metadataPda,
+          mint: mintKeypair.publicKey,
+          mintAuthority: publicKey,
+          payer: publicKey,
+          updateAuthority: publicKey,
+        },
+        {
+          createMetadataAccountArgsV3: {
+            data: metadataData,
+            isMutable: !tokenData.revokeUpdate,
+            collectionDetails: null
           }
-        } else {
-          toast.error('Transaction failed', {
-            id: creationToast,
-            description: error.message || 'Failed to process transaction'
-          });
         }
-        throw error;
+      );
+
+      // Create transaction for metadata
+      const transaction = new Transaction().add(createMetadataInstruction);
+
+      // If requested, revoke authorities
+      if (tokenData.revokeFreeze) {
+        transaction.add(
+          createSetAuthorityInstruction(
+            mintKeypair.publicKey,
+            publicKey,
+            AuthorityType.FreezeAccount,
+            null
+          )
+        );
       }
+
+      if (tokenData.revokeMint) {
+        transaction.add(
+          createSetAuthorityInstruction(
+            mintKeypair.publicKey,
+            publicKey,
+            AuthorityType.MintTokens,
+            null
+          )
+        );
+      }
+
+      // Get recent blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      // Sign and send transaction
+      toast.loading('Please approve the transaction...', { id: creationToast });
+      const signedTransaction = await signTransaction(transaction);
+      
+      toast.loading('Confirming transaction...', { id: creationToast });
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      await connection.confirmTransaction(signature, 'confirmed');
+
+      // Success!
+      toast.success('Token created successfully!', {
+        id: creationToast,
+        description: `Mint address: ${mintKeypair.publicKey.toString()}`
+      });
+
+      // Reset form
+      setTokenData({
+        name: "",
+        symbol: "",
+        logo: null,
+        decimals: "9",
+        totalSupply: "1000000000",
+        description: "",
+        website: "",
+        twitter: "",
+        telegram: "",
+        discord: "",
+        creatorName: "",
+        creatorWebsite: "",
+        modifyCreator: true,
+        revokeFreeze: true,
+        revokeMint: true,
+        revokeUpdate: true
+      });
+      setCurrentStep(1);
 
     } catch (error: any) {
       console.error('Token creation error:', error);
       const errorMessage = error.message || 'Unknown error occurred';
-      if (!errorMessage.includes('Transaction cancelled')) {
-        toast.error('Failed to create token', {
-          id: creationToast,
-          description: errorMessage.includes('insufficient funds')
-            ? 'Insufficient SOL balance for transaction fees'
-            : errorMessage
-        });
-      }
+      toast.error('Failed to create token', {
+        id: creationToast,
+        description: errorMessage
+      });
     } finally {
       setIsCreating(false);
     }
