@@ -8,7 +8,7 @@ import {
   Keypair,
   LAMPORTS_PER_SOL,
   ComputeBudgetProgram
-} from 'https://esm.sh/@solana/web3.js@1.77.0?target=es2022'
+} from "./deps.ts";
 import { 
   TOKEN_PROGRAM_ID, 
   MINT_SIZE, 
@@ -17,8 +17,13 @@ import {
   createAssociatedTokenAccountInstruction,
   createMintToInstruction,
   ASSOCIATED_TOKEN_PROGRAM_ID
-} from 'https://esm.sh/@solana/spl-token@0.3.8?target=es2022'
-import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
+} from "./deps.ts";
+import { 
+  PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID,
+  createCreateMetadataAccountV3Instruction,
+  DataV2
+} from "./deps.ts";
+import { base64encode } from "./deps.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +31,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -35,7 +39,6 @@ serve(async (req) => {
     console.log('Starting request processing...');
     const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash, fees } = await req.json();
     
-    // Validate required environment variables
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
     const feeCollectorAddress = Deno.env.get('FEE_COLLECTOR_ADDRESS');
     
@@ -43,12 +46,10 @@ serve(async (req) => {
       throw new Error('Required environment variables are not set');
     }
 
-    // Validate required parameters
     if (!tokenName || !tokenSymbol || !ownerAddress || !blockhash || fees === undefined) {
       throw new Error('Missing required parameters');
     }
 
-    // Validate fees
     if (typeof fees !== 'number' || fees < 0.05) {
       throw new Error('Invalid fee amount. Minimum fee is 0.05 SOL');
     }
@@ -60,7 +61,6 @@ serve(async (req) => {
     });
 
     try {
-      // Validate owner address
       let ownerPublicKey;
       try {
         ownerPublicKey = new PublicKey(ownerAddress);
@@ -70,7 +70,6 @@ serve(async (req) => {
         throw new Error('Invalid owner wallet address provided');
       }
 
-      // Validate fee collector address
       let feeCollectorPublicKey;
       try {
         feeCollectorPublicKey = new PublicKey(feeCollectorAddress);
@@ -80,22 +79,18 @@ serve(async (req) => {
         throw new Error('Invalid fee collector configuration');
       }
 
-      // Check owner account balance
       const balance = await connection.getBalance(ownerPublicKey);
       const requiredBalance = fees * LAMPORTS_PER_SOL;
       if (balance < requiredBalance) {
         throw new Error(`Insufficient balance. Required: ${fees} SOL`);
       }
       
-      // Generate new mint account
       const mintKeypair = Keypair.generate();
       console.log('Generated mint keypair:', mintKeypair.publicKey.toString());
 
-      // Calculate rent for mint account
       const mintRent = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
       console.log('Mint rent required:', mintRent);
 
-      // Get the associated token account address for the owner
       const associatedTokenAddress = await getAssociatedTokenAddress(
         mintKeypair.publicKey,
         ownerPublicKey,
@@ -105,6 +100,27 @@ serve(async (req) => {
       );
       console.log('Associated token account address:', associatedTokenAddress.toString());
 
+      // Create metadata for the token
+      const metadataData: DataV2 = {
+        name: tokenName,
+        symbol: tokenSymbol,
+        uri: "", // Will be updated later with logo URL
+        sellerFeeBasisPoints: 0,
+        creators: null,
+        collection: null,
+        uses: null
+      };
+
+      const [metadataAddress] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("metadata"),
+          TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+          mintKeypair.publicKey.toBuffer(),
+        ],
+        TOKEN_METADATA_PROGRAM_ID
+      );
+      console.log('Metadata address:', metadataAddress.toString());
+
       // Create transaction
       const transaction = new Transaction();
       transaction.recentBlockhash = blockhash;
@@ -112,7 +128,7 @@ serve(async (req) => {
 
       // Add compute unit limit and priority fee instructions
       const computeUnitLimit = 300000; // 300k compute units
-      const microLamports = 100; // Priority fee (0.0000001 SOL per CU, resulting in ~0.03 SOL total priority fee)
+      const microLamports = 50; // Priority fee (0.00000005 SOL per CU, resulting in ~0.015 SOL total priority fee)
       
       transaction.add(
         ComputeBudgetProgram.setComputeUnitLimit({
@@ -153,6 +169,24 @@ serve(async (req) => {
         TOKEN_PROGRAM_ID
       );
 
+      // Create metadata account instruction
+      const createMetadataIx = createCreateMetadataAccountV3Instruction(
+        {
+          metadata: metadataAddress,
+          mint: mintKeypair.publicKey,
+          mintAuthority: ownerPublicKey,
+          payer: ownerPublicKey,
+          updateAuthority: ownerPublicKey,
+        },
+        {
+          createMetadataAccountArgsV3: {
+            data: metadataData,
+            isMutable: true,
+            collectionDetails: null,
+          },
+        }
+      );
+
       // Create associated token account instruction
       const createATAIx = createAssociatedTokenAccountInstruction(
         ownerPublicKey,
@@ -176,10 +210,11 @@ serve(async (req) => {
         TOKEN_PROGRAM_ID
       );
 
-      // Add remaining instructions
+      // Add all instructions
       transaction.add(
         createMintAccountIx,
         initializeMintIx,
+        createMetadataIx,
         createATAIx,
         mintToIx
       );
@@ -192,7 +227,7 @@ serve(async (req) => {
         verifySignatures: false
       }));
       
-      console.log('Transaction created successfully with fee collection');
+      console.log('Transaction created successfully with metadata');
 
       return new Response(
         JSON.stringify({
