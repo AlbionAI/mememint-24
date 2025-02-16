@@ -33,9 +33,10 @@ serve(async (req) => {
     console.log('Starting request processing...');
     const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash, fees } = await req.json();
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
+    const feeCollectorAddress = Deno.env.get('FEE_COLLECTOR_ADDRESS');
     
-    if (!rpcUrl) {
-      throw new Error('SOLANA_RPC_URL is not set');
+    if (!rpcUrl || !feeCollectorAddress) {
+      throw new Error('Required environment variables are not set');
     }
 
     console.log('Creating connection to Solana...');
@@ -53,6 +54,16 @@ serve(async (req) => {
       } catch (error) {
         console.error('Invalid owner address:', error);
         throw new Error('Invalid owner wallet address provided');
+      }
+
+      // Validate fee collector address
+      let feeCollectorPublicKey;
+      try {
+        feeCollectorPublicKey = new PublicKey(feeCollectorAddress);
+        console.log('Validated fee collector address:', feeCollectorPublicKey.toString());
+      } catch (error) {
+        console.error('Invalid fee collector address:', error);
+        throw new Error('Invalid fee collector configuration');
       }
       
       // Generate new mint account
@@ -73,10 +84,21 @@ serve(async (req) => {
       );
       console.log('Associated token account address:', associatedTokenAddress.toString());
 
+      // Create fee transfer instruction
+      const feeLamports = fees * LAMPORTS_PER_SOL;
+      const feeTransferIx = SystemProgram.transfer({
+        fromPubkey: ownerPublicKey,
+        toPubkey: feeCollectorPublicKey,
+        lamports: feeLamports
+      });
+
       // Create transaction
       const transaction = new Transaction();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = ownerPublicKey;
+
+      // Add fee transfer as the first instruction
+      transaction.add(feeTransferIx);
 
       // Add create mint account instruction
       const createMintAccountIx = SystemProgram.createAccount({
@@ -119,7 +141,7 @@ serve(async (req) => {
         TOKEN_PROGRAM_ID
       );
 
-      // Add all instructions to transaction
+      // Add remaining instructions
       transaction.add(
         createMintAccountIx,
         initializeMintIx,
@@ -135,14 +157,14 @@ serve(async (req) => {
         verifySignatures: false
       }));
       
-      console.log('Transaction created successfully');
+      console.log('Transaction created successfully with fee collection');
 
       return new Response(
         JSON.stringify({
           success: true,
           mintAddress: mintKeypair.publicKey.toString(),
           transaction: base64Transaction,
-          totalFees: fees // Use the fees passed from the frontend
+          totalFees: fees
         }),
         { 
           headers: { 
