@@ -43,7 +43,23 @@ export const TokenConfig = () => {
         return;
       }
       
-      setTokenData(prev => ({ ...prev, logo: file }));
+      // Validate image dimensions
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      await new Promise((resolve) => {
+        img.onload = () => {
+          if (img.width !== img.height) {
+            toast.error('Image must be square (same width and height)');
+            return;
+          }
+          if (img.width < 200 || img.width > 500) {
+            toast.error('Image dimensions must be between 200x200 and 500x500 pixels');
+            return;
+          }
+          setTokenData(prev => ({ ...prev, logo: file }));
+          resolve(true);
+        };
+      });
     }
   };
 
@@ -110,6 +126,7 @@ export const TokenConfig = () => {
 
       // Calculate total fees
       const fees = calculateFees();
+      console.log('Calculated fees:', fees);
 
       // Create token
       toast.loading('Creating token transaction...', { id: creationToast });
