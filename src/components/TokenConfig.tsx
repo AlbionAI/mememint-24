@@ -8,6 +8,7 @@ import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
 import { TokenSocialDetails } from "./token/TokenSocialDetails";
 import { StepTracker } from "./token/StepTracker";
 import { BACKEND_URL } from "@/config/env";
+import { supabase } from "@/integrations/supabase/client";
 
 type TokenData = {
   name: string;
@@ -72,6 +73,17 @@ export const TokenConfig = () => {
       return;
     }
 
+    // Get the current session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast({
+        title: "Error",
+        description: "Please sign in to create a token",
+        variant: "destructive"
+      });
+      return;
+    }
+
     console.log('Wallet connected:', publicKey.toString());
     console.log('Token data being sent:', tokenData);
 
@@ -84,7 +96,7 @@ export const TokenConfig = () => {
         mintAuthority: true
       };
       
-      const apiUrl = `${BACKEND_URL}/create-token`; // Removed /api prefix as it's not needed for Supabase functions
+      const apiUrl = `${BACKEND_URL}/create-token`;
       console.log('Sending request to:', apiUrl);
       console.log('Request body:', requestBody);
 
@@ -92,7 +104,7 @@ export const TokenConfig = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`, // Add Authorization header for Supabase
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify(requestBody),
       });

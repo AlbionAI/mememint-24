@@ -21,9 +21,30 @@ serve(async (req) => {
   }
 
   try {
+    // Initialize Supabase admin client to verify JWT
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Get the JWT token from the Authorization header
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Missing Authorization header')
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    
+    // Verify the JWT token
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token)
+    
+    if (authError || !user) {
+      throw new Error('Invalid JWT token')
+    }
+
     const { walletPublicKey, name, symbol, description, imagePath, addMetadata, mintAuthority } = await req.json()
     
-    // Initialize Supabase client
+    // Initialize Supabase client for database operations
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
@@ -67,6 +88,7 @@ serve(async (req) => {
       const { data, error } = await supabaseClient
         .from('token_creations')
         .insert({
+          user_id: user.id, // Add user_id to the record
           wallet_address: walletPublicKey,
           mint_address: mint.publicKey.toBase58(),
           name,
@@ -94,11 +116,12 @@ serve(async (req) => {
     )
     
   } catch (error) {
+    console.error('Error:', error.message)
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status: error.message.includes('Invalid JWT') ? 401 : 500
       },
     )
   }
