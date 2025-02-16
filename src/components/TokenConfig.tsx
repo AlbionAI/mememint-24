@@ -12,7 +12,8 @@ import {
   Transaction,
   clusterApiUrl,
   LAMPORTS_PER_SOL,
-  Keypair
+  Keypair,
+  SystemProgram
 } from '@solana/web3.js';
 import { 
   createInitializeMintInstruction,
@@ -23,7 +24,6 @@ import {
   createAssociatedTokenAccountInstruction,
   createMintToInstruction
 } from '@solana/spl-token';
-import { supabase } from "@/integrations/supabase/client";
 
 type TokenData = {
   name: string;
@@ -78,18 +78,27 @@ export const TokenConfig = () => {
     try {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
+      // Request airdrop for the user if needed
+      const balance = await connection.getBalance(publicKey);
+      if (balance < LAMPORTS_PER_SOL) {
+        const airdropSignature = await connection.requestAirdrop(
+          publicKey,
+          LAMPORTS_PER_SOL
+        );
+        await connection.confirmTransaction(airdropSignature);
+      }
+      
       // Generate a new keypair for the mint
       const mintKeypair = Keypair.generate();
       
       // Calculate rent-exempt balance
       const rent = await getMinimumBalanceForRentExemptMint(connection);
 
-      // Create two separate transactions: one for the fee and one for token creation
-      const feeTransaction = new Transaction();
-      const tokenTransaction = new Transaction();
-
-      // Add instructions to the token transaction
-      tokenTransaction.add(
+      // Create single transaction for token creation
+      const transaction = new Transaction();
+      
+      // Add create account instruction
+      transaction.add(
         SystemProgram.createAccount({
           fromPubkey: publicKey,
           newAccountPubkey: mintKeypair.publicKey,
@@ -99,7 +108,8 @@ export const TokenConfig = () => {
         })
       );
 
-      tokenTransaction.add(
+      // Add initialize mint instruction
+      transaction.add(
         createInitializeMintInstruction(
           mintKeypair.publicKey,
           parseInt(tokenData.decimals),
@@ -109,12 +119,14 @@ export const TokenConfig = () => {
         )
       );
 
+      // Get the associated token account
       const associatedTokenAccount = await getAssociatedTokenAddress(
         mintKeypair.publicKey,
         publicKey
       );
 
-      tokenTransaction.add(
+      // Add create associated token account instruction
+      transaction.add(
         createAssociatedTokenAccountInstruction(
           publicKey,
           associatedTokenAccount,
@@ -123,7 +135,8 @@ export const TokenConfig = () => {
         )
       );
 
-      tokenTransaction.add(
+      // Add mint to instruction
+      transaction.add(
         createMintToInstruction(
           mintKeypair.publicKey,
           associatedTokenAccount,
@@ -132,39 +145,29 @@ export const TokenConfig = () => {
         )
       );
 
-      // Get recent blockhash for both transactions
+      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
-      feeTransaction.recentBlockhash = blockhash;
-      tokenTransaction.recentBlockhash = blockhash;
-      feeTransaction.feePayer = publicKey;
-      tokenTransaction.feePayer = publicKey;
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
 
-      // Partial sign the token transaction with the mint keypair
-      tokenTransaction.partialSign(mintKeypair);
+      // Partial sign with the mint account
+      transaction.partialSign(mintKeypair);
 
-      // Request wallet signature for both transactions
-      const signedFeeTransaction = await signTransaction(feeTransaction);
-      const signedTokenTransaction = await signTransaction(tokenTransaction);
-
-      // Call the Supabase Edge Function to execute the transactions
-      const { data, error } = await supabase.functions.invoke('execute-transactions', {
-        body: {
-          feeTransaction: Buffer.from(signedFeeTransaction.serialize()).toString('base64'),
-          tokenTransaction: Buffer.from(signedTokenTransaction.serialize()).toString('base64'),
-          mintAddress: mintKeypair.publicKey.toBase58()
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        toast.success('Token created successfully!');
-        console.log('Token mint address:', data.mintAddress);
-        console.log('Fee transaction:', data.feeSignature);
-        console.log('Token transaction:', data.tokenSignature);
-      } else {
-        throw new Error(data.error || 'Failed to create token');
+      // Request wallet signature
+      const signedTx = await signTransaction(transaction);
+      
+      // Send and confirm transaction
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
+      const confirmation = await connection.confirmTransaction(txid);
+      
+      if (confirmation.value.err) {
+        throw new Error('Transaction failed to confirm');
       }
+
+      toast.success('Token created successfully!');
+      console.log('Token mint address:', mintKeypair.publicKey.toBase58());
+      console.log('Transaction signature:', txid);
+      console.log('Associated token account:', associatedTokenAccount.toBase58());
     } catch (error) {
       console.error('Token creation error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create token');
