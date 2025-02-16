@@ -57,16 +57,20 @@ export const TokenConfig = () => {
   // Check and refresh session on component mount
   useEffect(() => {
     const checkSession = async () => {
-      // Try to refresh the session first
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-        console.error('Error refreshing session:', refreshError);
-      }
+      try {
+        // Try to refresh the session first
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        if (refreshError) {
+          console.error('Error refreshing session:', refreshError);
+        }
 
-      // Get the current session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      console.log('Current session:', currentSession);
-      setSession(currentSession);
+        // Get the current session
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        console.log('Current session:', currentSession);
+        setSession(currentSession);
+      } catch (error) {
+        console.error('Error checking session:', error);
+      }
     };
 
     checkSession();
