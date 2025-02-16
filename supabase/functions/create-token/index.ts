@@ -5,15 +5,16 @@ const allowedOrigins = [
   'https://mememint.co',
   'https://www.mememint.co',
   'https://mememintco.netlify.app',
-  'http://localhost:5173' // Add localhost for development
+  'http://localhost:5173'
 ];
 
-const corsHeaders = (origin: string) => ({
-  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*', // Temporarily allow all origins for debugging
+  'Access-Control-Allow-Headers': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Max-Age': '86400'
-});
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'true'
+};
 
 interface CreateTokenRequest {
   tokenName: string;
@@ -34,18 +35,24 @@ interface CreateTokenRequest {
 }
 
 serve(async (req) => {
-  // Get the origin from the request headers or use the first allowed origin as default
-  const origin = req.headers.get('origin') || allowedOrigins[0];
+  console.log('Request method:', req.method);
+  console.log('Request headers:', Object.fromEntries(req.headers.entries()));
   
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return new Response(null, { 
-      headers: corsHeaders(origin)
+      status: 204,
+      headers: {
+        ...corsHeaders,
+        'Content-Length': '0'
+      }
     });
   }
 
   try {
     if (req.method !== 'POST') {
+      console.log('Method not allowed:', req.method);
       throw new Error('Method not allowed');
     }
 
@@ -60,8 +67,7 @@ serve(async (req) => {
       throw new Error('Missing required fields');
     }
 
-    // For now, just return success with the validated data
-    // We'll add the actual token creation logic in the next step
+    // Return success response
     return new Response(
       JSON.stringify({
         success: true,
@@ -69,8 +75,9 @@ serve(async (req) => {
         data: requestData
       }),
       { 
-        headers: { 
-          ...corsHeaders(origin), 
+        status: 200,
+        headers: {
+          ...corsHeaders,
           'Content-Type': 'application/json'
         }
       }
@@ -86,7 +93,7 @@ serve(async (req) => {
       {
         status: error instanceof Error && error.message === 'Method not allowed' ? 405 : 500,
         headers: {
-          ...corsHeaders(origin),
+          ...corsHeaders,
           'Content-Type': 'application/json'
         }
       }
