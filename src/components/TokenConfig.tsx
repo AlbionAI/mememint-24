@@ -108,22 +108,40 @@ export const TokenConfig = () => {
       const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
 
       try {
-        // Convert base64 to Uint8Array
-        const transactionBytes = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
+        // Convert base64 to Uint8Array directly using Buffer
+        const transactionBytes = new Uint8Array(
+          Buffer.from(tokenResponse.transaction, 'base64')
+        );
         console.log('Transaction bytes:', transactionBytes);
 
-        // Try to reconstruct as a versioned transaction first
+        // Try to reconstruct as a legacy transaction first
         let transaction;
         try {
-          transaction = VersionedTransaction.deserialize(transactionBytes);
-          console.log('Reconstructed as VersionedTransaction');
-        } catch (e) {
-          // If that fails, try as a legacy transaction
+          // Create a new Transaction and populate it with the deserialized message
           transaction = Transaction.from(transactionBytes);
           console.log('Reconstructed as Legacy Transaction');
+        } catch (e) {
+          console.error('Failed to reconstruct as legacy transaction:', e);
+          // If legacy transaction reconstruction fails, try versioned transaction
+          try {
+            transaction = VersionedTransaction.deserialize(transactionBytes);
+            console.log('Reconstructed as VersionedTransaction');
+          } catch (ve) {
+            console.error('Failed to reconstruct as versioned transaction:', ve);
+            throw new Error('Failed to reconstruct transaction');
+          }
         }
-        
+
         console.log('Transaction reconstructed:', transaction);
+
+        // Get a recent blockhash
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        
+        // If it's a legacy transaction, update the blockhash
+        if (transaction instanceof Transaction) {
+          transaction.recentBlockhash = blockhash;
+          transaction.feePayer = publicKey;
+        }
 
         // Sign the transaction
         const signedTransaction = await signTransaction(transaction);
@@ -133,12 +151,11 @@ export const TokenConfig = () => {
         const signature = await connection.sendRawTransaction(signedTransaction.serialize());
         console.log('Transaction sent, signature:', signature);
 
-        // Wait for confirmation with explicit confirmation level
-        const latestBlockhash = await connection.getLatestBlockhash();
+        // Wait for confirmation
         const confirmation = await connection.confirmTransaction({
           signature,
-          blockhash: latestBlockhash.blockhash,
-          lastValidBlockHeight: latestBlockhash.lastValidBlockHeight
+          blockhash,
+          lastValidBlockHeight
         });
         
         console.log('Transaction confirmation:', confirmation);
