@@ -11,13 +11,6 @@ export function WalletConnect() {
 
   // Handle connection status changes
   useEffect(() => {
-    // Only show connecting toast on initial connection attempt
-    if (connecting && initialRender.current) {
-      toast.loading('Connecting wallet...', {
-        duration: 1000
-      });
-    }
-
     if (connected && publicKey && initialRender.current) {
       toast.success('Wallet connected successfully!');
       console.log('Connected wallet address:', publicKey.toBase58());
