@@ -112,7 +112,7 @@ serve(async (req) => {
 
       // Add compute unit limit and priority fee instructions
       const computeUnitLimit = 300000; // 300k compute units
-      const microLamports = 1000; // Priority fee (0.000001 SOL per CU, resulting in ~0.3 SOL total priority fee)
+      const microLamports = 100; // Priority fee (0.0000001 SOL per CU, resulting in ~0.03 SOL total priority fee)
       
       transaction.add(
         ComputeBudgetProgram.setComputeUnitLimit({
