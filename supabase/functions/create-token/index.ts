@@ -1,7 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Connection, PublicKey, Transaction, SystemProgram, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js@1.87.6'
-import { TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11'
+import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'https://esm.sh/@solana/web3.js@1.87.6'
+import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 
@@ -18,87 +18,65 @@ serve(async (req) => {
   try {
     console.log('Starting request processing...');
     const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = await req.json();
-    const tokenCreatorPrivateKey = Deno.env.get('SOLANA_PRIVATE_KEY');
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
     
     if (!rpcUrl) {
       throw new Error('SOLANA_RPC_URL is not set');
     }
+
+    console.log('Creating connection to Solana...');
+    const connection = new Connection(rpcUrl, 'confirmed');
+    const ownerPublicKey = new PublicKey(ownerAddress);
     
-    if (!tokenCreatorPrivateKey) {
-      throw new Error('SOLANA_PRIVATE_KEY is not set');
-    }
-
-    let tokenCreatorKeypair: Keypair;
     try {
-      const privateKeyBytes = base58decode(tokenCreatorPrivateKey);
-      tokenCreatorKeypair = Keypair.fromSecretKey(privateKeyBytes);
-      console.log('Token creator public key:', tokenCreatorKeypair.publicKey.toString());
-    } catch (error) {
-      console.error('Keypair creation error:', error);
-      throw new Error('Failed to create token creator keypair');
-    }
-
-    const connection = new Connection(rpcUrl, {
-      commitment: 'confirmed'
-    });
-
-    try {
+      // Generate new mint account
       const mintKeypair = Keypair.generate();
-      console.log('Generated mint address:', mintKeypair.publicKey.toString());
+      console.log('Generated mint keypair:', mintKeypair.publicKey.toString());
 
-      // Get minimum balance without using bigint
-      const rentExemptBalance = await getMinimumBalanceForRentExemptMint(connection);
-      console.log('Rent exempt balance required:', rentExemptBalance / LAMPORTS_PER_SOL, 'SOL');
+      // Calculate minimum rent
+      const rentRequired = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+      console.log('Minimum rent required:', rentRequired);
 
-      const creatorBalance = await connection.getBalance(tokenCreatorKeypair.publicKey);
-      console.log('Creator balance:', creatorBalance / LAMPORTS_PER_SOL, 'SOL');
-
-      if (creatorBalance < rentExemptBalance) {
-        throw new Error(`Insufficient balance. Required: ${rentExemptBalance / LAMPORTS_PER_SOL} SOL`);
-      }
-
+      // Create transaction
       const transaction = new Transaction();
       
-      // Get fresh blockhash
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = new PublicKey(ownerAddress);
-
-      // Create account instruction
-      const createAccountInstruction = SystemProgram.createAccount({
-        fromPubkey: new PublicKey(ownerAddress),
-        newAccountPubkey: mintKeypair.publicKey,
-        space: MINT_SIZE,
-        lamports: rentExemptBalance,
-        programId: TOKEN_PROGRAM_ID
-      });
-
-      // Initialize mint instruction
-      const initializeMintInstruction = createInitializeMintInstruction(
-        mintKeypair.publicKey,
-        decimals,
-        new PublicKey(ownerAddress),
-        new PublicKey(ownerAddress),
-        TOKEN_PROGRAM_ID
+      // Add create account instruction
+      transaction.add(
+        SystemProgram.createAccount({
+          fromPubkey: ownerPublicKey,
+          newAccountPubkey: mintKeypair.publicKey,
+          space: MINT_SIZE,
+          lamports: rentRequired,
+          programId: TOKEN_PROGRAM_ID
+        })
       );
 
-      // Add instructions to transaction
-      transaction.add(createAccountInstruction);
-      transaction.add(initializeMintInstruction);
+      // Add initialize mint instruction
+      transaction.add(
+        createInitializeMintInstruction(
+          mintKeypair.publicKey,    // mint pubkey
+          decimals,                 // decimals
+          ownerPublicKey,          // mint authority
+          ownerPublicKey,          // freeze authority (same as mint authority)
+          TOKEN_PROGRAM_ID
+        )
+      );
 
-      // Sign with mint keypair
-      transaction.partialSign(mintKeypair);
+      // Get latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = ownerPublicKey;
 
-      // Serialize transaction
+      // Sign with mint account
+      transaction.sign(mintKeypair);
+
+      // Serialize the transaction
       const serializedTransaction = transaction.serialize({
-        requireAllSignatures: false,
-        verifySignatures: false
+        requireAllSignatures: false
       });
 
-      // Convert to base64 safely
       const base64Transaction = base64encode(serializedTransaction);
-      console.log('Transaction created and serialized successfully');
+      console.log('Transaction created successfully');
 
       return new Response(
         JSON.stringify({
@@ -116,7 +94,7 @@ serve(async (req) => {
 
     } catch (error) {
       console.error('Transaction creation error:', error);
-      throw new Error(error instanceof Error ? error.message : 'Failed to create transaction');
+      throw error;
     }
 
   } catch (error) {
