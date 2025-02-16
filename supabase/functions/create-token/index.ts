@@ -1,7 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'https://esm.sh/@solana/web3.js@1.87.6?target=es2022'
-import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11?target=es2022'
+// Use a specific version that's known to work well with Phantom wallet
+import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'https://esm.sh/@solana/web3.js@1.77.0?target=es2022'
+import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.8?target=es2022'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 import { decode as base64decode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
@@ -26,55 +27,90 @@ serve(async (req) => {
     }
 
     console.log('Creating connection to Solana...');
-    const connection = new Connection(rpcUrl, 'confirmed');
+    const connection = new Connection(rpcUrl, {
+      commitment: 'confirmed',
+      confirmTransactionInitialTimeout: 60000, // 60 seconds
+    });
 
     try {
-      const ownerPublicKey = new PublicKey(ownerAddress);
+      // Validate owner address
+      let ownerPublicKey;
+      try {
+        ownerPublicKey = new PublicKey(ownerAddress);
+        console.log('Validated owner address:', ownerPublicKey.toString());
+      } catch (error) {
+        console.error('Invalid owner address:', error);
+        throw new Error('Invalid owner wallet address provided');
+      }
       
       // Generate new mint account
       const mintKeypair = Keypair.generate();
       console.log('Generated mint keypair:', mintKeypair.publicKey.toString());
 
-      // Calculate minimum rent
-      const rentRequired = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
-      console.log('Minimum rent required:', rentRequired);
+      // Calculate minimum rent with retry logic
+      let rentRequired;
+      try {
+        rentRequired = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+        console.log('Minimum rent required:', rentRequired);
+      } catch (error) {
+        console.error('Failed to get rent requirement, retrying...', error);
+        // Retry once after a short delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        rentRequired = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+      }
 
-      // Create transaction
+      if (!rentRequired) {
+        throw new Error('Failed to calculate rent requirement');
+      }
+
+      // Create transaction with versioned format for better compatibility
       const transaction = new Transaction();
       
-      // Get latest blockhash
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      console.log('Got blockhash:', blockhash);
+      // Get latest blockhash with retry logic
+      let blockhash;
+      try {
+        const { blockhash: latestBlockhash } = await connection.getLatestBlockhash('confirmed');
+        blockhash = latestBlockhash;
+        console.log('Got blockhash:', blockhash);
+      } catch (error) {
+        console.error('Failed to get blockhash, retrying...', error);
+        // Retry once after a short delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const { blockhash: retryBlockhash } = await connection.getLatestBlockhash('confirmed');
+        blockhash = retryBlockhash;
+      }
+
+      if (!blockhash) {
+        throw new Error('Failed to get latest blockhash');
+      }
       
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = ownerPublicKey;
       
       // Add create account instruction
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: ownerPublicKey,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports: rentRequired,
-          programId: TOKEN_PROGRAM_ID
-        })
+      const createAccountIx = SystemProgram.createAccount({
+        fromPubkey: ownerPublicKey,
+        newAccountPubkey: mintKeypair.publicKey,
+        space: MINT_SIZE,
+        lamports: rentRequired,
+        programId: TOKEN_PROGRAM_ID
+      });
+      
+      // Add initialize mint instruction
+      const initializeMintIx = createInitializeMintInstruction(
+        mintKeypair.publicKey,
+        decimals,
+        ownerPublicKey,
+        ownerPublicKey,
+        TOKEN_PROGRAM_ID
       );
 
-      // Add initialize mint instruction
-      transaction.add(
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          decimals,
-          ownerPublicKey,
-          ownerPublicKey,
-          TOKEN_PROGRAM_ID
-        )
-      );
+      transaction.add(createAccountIx, initializeMintIx);
 
       // Sign with mint account
       transaction.partialSign(mintKeypair);
 
-      // Serialize the transaction
+      // Serialize the transaction with minimal requirements
       const serializedTransaction = transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false
@@ -99,7 +135,8 @@ serve(async (req) => {
 
     } catch (error) {
       console.error('Transaction creation error:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown transaction creation error';
+      throw new Error(`Failed to create token transaction: ${errorMessage}`);
     }
 
   } catch (error) {
