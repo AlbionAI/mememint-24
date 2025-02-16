@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -62,101 +61,65 @@ export const TokenConfig = () => {
     try {
       let logoUrl = null;
       if (tokenData.logo) {
-        console.log('Starting logo upload process...');
+        console.log('Starting logo upload...');
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('token-logos')
           .upload(`${Date.now()}-${tokenData.logo.name}`, tokenData.logo);
 
-        if (uploadError) {
-          console.error('Logo upload error:', uploadError);
-          throw new Error(`Failed to upload logo: ${uploadError.message}`);
-        }
+        if (uploadError) throw new Error(`Failed to upload logo: ${uploadError.message}`);
         
         const { data: { publicUrl } } = supabase.storage
           .from('token-logos')
           .getPublicUrl(uploadData.path);
           
         logoUrl = publicUrl;
-        console.log('Logo uploaded successfully:', logoUrl);
+        console.log('Logo uploaded:', logoUrl);
       }
 
       const createTokenParams = {
         tokenName: tokenData.name,
         tokenSymbol: tokenData.symbol,
-        decimals: parseInt(tokenData.decimals),
-        initialSupply: parseInt(tokenData.totalSupply.replace(/,/g, '')),
+        decimals: Number(tokenData.decimals),
+        initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
         ownerAddress: publicKey.toString()
       };
 
-      console.log('Attempting to create token with params:', createTokenParams);
+      console.log('Creating token with params:', createTokenParams);
 
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
         body: JSON.stringify(createTokenParams)
       });
 
-      console.log('Raw token creation response:', tokenResponse);
-      
-      if (functionError || !tokenResponse.success) {
+      if (functionError || !tokenResponse?.success) {
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
-      // Get the RPC URL through the edge function
       const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
-      
-      if (rpcError) {
-        throw new Error('Failed to get RPC URL');
-      }
+      if (rpcError) throw new Error('Failed to get RPC URL');
 
-      // Create connection to Solana using the provided RPC URL
-      const connection = new Connection(rpcUrl, {
-        commitment: 'finalized',
-        confirmTransactionInitialTimeout: 120000 // Increased timeout
-      });
+      const connection = new Connection(rpcUrl, { commitment: 'confirmed' });
 
       try {
-        console.log('Decoding transaction...');
-        const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
+        const transactionBytes = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
+        const transaction = Transaction.from(transactionBytes);
         
-        const transaction = Transaction.from(transactionBuffer);
-        console.log('Transaction decoded successfully');
-
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('finalized');
+        const { blockhash } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
-        
-        console.log('Requesting wallet signature...');
+
         const signedTransaction = await signTransaction(transaction);
-        console.log('Transaction signed by wallet');
 
-        console.log('Sending transaction to network...');
-        const signature = await connection.sendRawTransaction(
-          signedTransaction.serialize(),
-          {
-            skipPreflight: true,
-            maxRetries: 5,
-            preflightCommitment: 'finalized'
-          }
-        );
-        console.log('Transaction submitted:', signature);
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+          skipPreflight: true,
+          maxRetries: 3
+        });
 
-        console.log('Waiting for transaction confirmation...');
-        const confirmation = await connection.confirmTransaction(
-          {
-            signature,
-            blockhash,
-            lastValidBlockHeight
-          },
-          'finalized'
-        );
+        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
         if (confirmation.value.err) {
-          console.error('Transaction failed:', confirmation.value.err);
           throw new Error('Transaction failed on chain');
         }
 
-        console.log('Transaction confirmed successfully');
-
-        // Store token details in Supabase
         const { mintAddress } = tokenResponse;
         const optionalFields = {
           ...(tokenData.description ? { description: tokenData.description } : {}),
@@ -174,7 +137,7 @@ export const TokenConfig = () => {
             .eq('mint_address', mintAddress);
 
           if (dbError) {
-            console.warn('Warning: Failed to update optional token details:', dbError);
+            console.warn('Failed to save token details:', dbError);
             toast.warning('Token created, but failed to save additional details');
           }
         }
@@ -183,7 +146,6 @@ export const TokenConfig = () => {
           description: `Mint address: ${mintAddress}`
         });
 
-        // Reset form
         setTokenData({
           name: "",
           symbol: "",
@@ -205,23 +167,18 @@ export const TokenConfig = () => {
         setCurrentStep(1);
 
       } catch (error) {
-        console.error('Transaction processing error:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Unknown transaction error occurred';
-        toast.error('Transaction failed', { description: errorMessage });
-        throw error; // Re-throw to be caught by outer catch block
+        console.error('Transaction error:', error);
+        throw new Error(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
     } catch (error) {
       console.error('Token creation error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      
-      let userMessage = errorMessage;
-      if (errorMessage.includes('insufficient funds')) {
-        userMessage = 'Insufficient SOL balance to create token. Please make sure you have enough SOL to cover the transaction fees.';
-      }
+      const message = error instanceof Error ? error.message : 'Unknown error occurred';
       
       toast.error('Failed to create token', {
-        description: userMessage
+        description: message.includes('insufficient funds')
+          ? 'Insufficient SOL balance. Please make sure you have enough SOL to cover the transaction fees.'
+          : message
       });
     } finally {
       setIsCreating(false);
