@@ -248,8 +248,8 @@ serve(async (req) => {
         mintToIx
       );
 
-      // Add authority revocation instructions if requested
-      if (revokeFreeze) {
+      // Add authority revocation instructions if switches are DISABLED
+      if (!revokeFreeze) {
         const revokeFreezeIx = createSetAuthorityInstruction(
           mintKeypair.publicKey,
           ownerPublicKey,
@@ -259,7 +259,7 @@ serve(async (req) => {
         transaction.add(revokeFreezeIx);
       }
 
-      if (revokeMint) {
+      if (!revokeMint) {
         const revokeMintIx = createSetAuthorityInstruction(
           mintKeypair.publicKey,
           ownerPublicKey,
@@ -269,7 +269,7 @@ serve(async (req) => {
         transaction.add(revokeMintIx);
       }
 
-      if (revokeUpdate) {
+      if (!revokeUpdate) {
         const revokeUpdateIx = createSetAuthorityInstruction(
           metadataAddress,
           ownerPublicKey,
