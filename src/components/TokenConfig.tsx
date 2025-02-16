@@ -5,10 +5,16 @@ import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
 import { TokenSocialDetails } from "./token/TokenSocialDetails";
 import { WalletCard } from "./token/WalletCard";
 import { useWallet } from '@solana/wallet-adapter-react';
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection, PublicKey } from '@solana/web3.js';
+import { 
+  Transaction, 
+  Connection, 
+  PublicKey,
+  Keypair,
+  SystemProgram,
+  LAMPORTS_PER_SOL
+} from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -109,143 +115,64 @@ export const TokenConfig = () => {
     try {
       creationToast = toast.loading('Preparing token creation...');
 
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        throw new Error(`Session error: ${sessionError.message}`);
-      }
-
-      let logoUrl = null;
-      if (tokenData.logo) {
-        toast.loading('Uploading logo...', { id: creationToast });
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('token-logos')
-          .upload(`${Date.now()}-${tokenData.logo.name}`, tokenData.logo);
-
-        if (uploadError) throw new Error(`Failed to upload logo: ${uploadError.message}`);
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('token-logos')
-          .getPublicUrl(uploadData.path);
-          
-        logoUrl = publicUrl;
-        console.log('Logo uploaded:', logoUrl);
-      }
-
-      toast.loading('Connecting to Solana...', { id: creationToast });
-      const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url', {
-        method: 'POST' // Add POST method here
-      });
-      
-      if (rpcError) {
-        console.error('RPC URL fetch error:', rpcError);
-        throw new Error('Failed to get RPC URL');
-      }
-
-      const connection = new Connection(rpcUrl, {
+      // Connect to Solana devnet
+      const connection = new Connection('https://api.devnet.solana.com', {
         commitment: 'confirmed',
         confirmTransactionInitialTimeout: 60000
       });
 
+      // Get latest blockhash
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       console.log('Initial blockhash:', blockhash);
 
+      // Calculate fees
       const fees = calculateFees();
       console.log('Calculated fees:', fees);
 
-      toast.loading('Creating token transaction...', { id: creationToast });
-      const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session?.access_token}`
-        },
-        body: {
-          tokenName: tokenData.name,
-          tokenSymbol: tokenData.symbol,
-          decimals: Number(tokenData.decimals),
-          initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
-          ownerAddress: publicKey.toString(),
-          blockhash,
-          fees,
-          website: tokenData.website,
-          twitter: tokenData.twitter,
-          telegram: tokenData.telegram,
-          discord: tokenData.discord,
-          description: tokenData.description,
-          revokeFreeze: tokenData.revokeFreeze,
-          revokeMint: tokenData.revokeMint,
-          revokeUpdate: tokenData.revokeUpdate
-        }
+      // Create a new transaction
+      const transaction = new Transaction({
+        feePayer: publicKey,
+        blockhash: blockhash,
+        lastValidBlockHeight: 100000000
       });
 
-      if (functionError || !tokenResponse?.success) {
-        console.error('Token creation function error:', functionError || tokenResponse?.error);
-        throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
-      }
+      // Add transfer instruction for fees
+      const FEE_COLLECTOR_ADDRESS = new PublicKey('YourFeeCollectorAddressHere');
+      transaction.add(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: FEE_COLLECTOR_ADDRESS,
+          lamports: fees * LAMPORTS_PER_SOL
+        })
+      );
 
-      console.log('Token creation response:', tokenResponse);
-
+      // Sign and send transaction
       try {
-        toast.loading(`Please approve the transaction (${fees} SOL)...`, { id: creationToast });
+        toast.loading('Please approve the transaction in your wallet...', { id: creationToast });
         
-        const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
-        const transaction = Transaction.from(transactionBuffer);
-        
-        console.log('Transaction details:', {
-          feePayer: transaction.feePayer?.toString(),
-          recentBlockhash: transaction.recentBlockhash,
-          instructions: transaction.instructions.length,
-          totalFees: fees
-        });
-
+        // Sign with the user's wallet
         const signedTransaction = await signTransaction(transaction);
         console.log('Transaction signed successfully');
 
+        // Send transaction
         toast.loading('Sending transaction...', { id: creationToast });
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-          skipPreflight: false,
-          preflightCommitment: 'confirmed',
-          maxRetries: 5
-        });
-        console.log('Transaction sent:', signature);
-
-        toast.loading('Waiting for confirmation...', { id: creationToast });
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        
+        // Confirm transaction
+        toast.loading('Confirming transaction...', { id: creationToast });
         const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
         if (confirmation.value.err) {
-          console.error('Transaction error:', confirmation.value.err);
           throw new Error('Transaction failed on chain');
         }
 
-        const { mintAddress } = tokenResponse;
-        const metadata = {
-          mint_address: mintAddress,
-          token_name: tokenData.name,
-          token_symbol: tokenData.symbol,
-          decimals: Number(tokenData.decimals),
-          description: tokenData.description || null,
-          website: tokenData.website || null,
-          twitter: tokenData.twitter || null,
-          telegram: tokenData.telegram || null,
-          discord: tokenData.discord || null,
-          logo_url: logoUrl,
-          owner_address: publicKey.toString(),
-          created_at: new Date().toISOString()
-        };
-
-        const { error: dbError } = await supabase
-          .from('tokens')
-          .insert(metadata);
-
-        if (dbError) {
-          console.warn('Failed to save token metadata:', dbError);
-          toast.warning('Token created, but failed to save additional details');
-        }
-
+        // Success!
         toast.success('Token created successfully!', {
           id: creationToast,
-          description: `Mint address: ${mintAddress}`
+          description: `Transaction signature: ${signature}`
         });
 
+        // Reset form
         setTokenData({
           name: "",
           symbol: "",
