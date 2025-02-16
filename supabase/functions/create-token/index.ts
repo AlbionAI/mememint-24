@@ -5,7 +5,21 @@ import { Connection, Keypair, PublicKey, Transaction, SystemProgram } from "http
 import { createMint, getOrCreateAssociatedTokenAccount, mintTo } from "https://esm.sh/@solana/spl-token"
 import { bundlrStorage, Metaplex, keypairIdentity, toMetaplexFile } from "https://esm.sh/@metaplex-foundation/js"
 
+// Define CORS headers
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+}
+
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      headers: corsHeaders
+    })
+  }
+
   try {
     const { walletPublicKey, name, symbol, description, imagePath, addMetadata, mintAuthority } = await req.json()
     
@@ -74,7 +88,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify(result),
       { 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
       },
     )
@@ -83,7 +97,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       { 
-        headers: { 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500 
       },
     )
