@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { 
   Connection, 
@@ -27,15 +26,27 @@ import {
 } from "./deps.ts";
 import { base64encode } from "./deps.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+const allowedOrigins = [
+  'https://mememint.co',
+  'https://www.mememint.co',
+  'https://mememintco.netlify.app'
+];
+
+const corsHeaders = (origin: string) => ({
+  'Access-Control-Allow-Origin': allowedOrigins.includes(origin) ? origin : allowedOrigins[0],
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400'
+});
 
 serve(async (req) => {
+  const origin = req.headers.get('origin') || allowedOrigins[0];
+  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      headers: corsHeaders(origin)
+    });
   }
 
   try {
@@ -48,7 +59,6 @@ serve(async (req) => {
       ownerAddress, 
       blockhash, 
       fees,
-      // Add new parameters
       website,
       twitter,
       telegram,
@@ -129,7 +139,6 @@ serve(async (req) => {
         creators: null,
         collection: null,
         uses: null,
-        // Additional metadata that will be stored in the URI JSON
         properties: {
           files: [],
           links: {
@@ -300,7 +309,7 @@ serve(async (req) => {
         }),
         { 
           headers: { 
-            ...corsHeaders, 
+            ...corsHeaders(origin), 
             'Content-Type': 'application/json'
           }
         }
@@ -322,7 +331,7 @@ serve(async (req) => {
       {
         status: 500,
         headers: {
-          ...corsHeaders,
+          ...corsHeaders(origin),
           'Content-Type': 'application/json'
         }
       }
