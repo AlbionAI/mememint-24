@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { Card } from "./ui/card";
 import { useToast } from "./ui/use-toast";
@@ -34,6 +34,7 @@ export const TokenConfig = () => {
   const { toast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [session, setSession] = useState(null);
   const [tokenData, setTokenData] = useState<TokenData>({
     name: "",
     symbol: "",
@@ -52,6 +53,34 @@ export const TokenConfig = () => {
     revokeMint: true,
     revokeUpdate: true
   });
+
+  // Check and refresh session on component mount
+  useEffect(() => {
+    const checkSession = async () => {
+      // Try to refresh the session first
+      const { error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError) {
+        console.error('Error refreshing session:', refreshError);
+      }
+
+      // Get the current session
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      console.log('Current session:', currentSession);
+      setSession(currentSession);
+    };
+
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session);
+      setSession(session);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -73,12 +102,15 @@ export const TokenConfig = () => {
       return;
     }
 
-    // Get the current session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    // Double check session before proceeding
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    console.log('Checking current session before request:', currentSession);
+
+    if (!currentSession) {
+      console.log('No valid session found');
       toast({
         title: "Error",
-        description: "Please sign in to create a token",
+        description: "Please sign in to create a token. Your session may have expired.",
         variant: "destructive"
       });
       return;
@@ -99,12 +131,13 @@ export const TokenConfig = () => {
       const apiUrl = `${BACKEND_URL}/create-token`;
       console.log('Sending request to:', apiUrl);
       console.log('Request body:', requestBody);
+      console.log('Using access token:', currentSession.access_token);
 
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${currentSession.access_token}`,
         },
         body: JSON.stringify(requestBody),
       });
