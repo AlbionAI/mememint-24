@@ -1,15 +1,12 @@
-
 import { TokenConfig } from "@/components/TokenConfig";
 import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { WalletConnect } from "@/components/WalletConnect";
 import { useWallet } from '@solana/wallet-adapter-react';
-
 const Index = () => {
   const {
     connected
   } = useWallet();
-
   return <>
       <Navigation />
       <main className="min-h-screen bg-slate-900 relative">
@@ -40,5 +37,4 @@ const Index = () => {
       </main>
     </>;
 };
-
 export default Index;
