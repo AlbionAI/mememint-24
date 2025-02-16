@@ -3,7 +3,6 @@ import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
 import { TokenSocialDetails } from "./token/TokenSocialDetails";
-import { WalletCard } from "./token/WalletCard";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
@@ -14,7 +13,7 @@ import {
   Transaction,
   clusterApiUrl,
   LAMPORTS_PER_SOL,
-  Signer
+  Keypair
 } from '@solana/web3.js';
 import { 
   createInitializeMintInstruction,
@@ -80,48 +79,80 @@ export const TokenConfig = () => {
     try {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
-      const walletSigner: Signer = {
-        publicKey,
-        secretKey: Uint8Array.from([]), // Empty since we're using wallet adapter
-      };
+      // Generate a new keypair for the mint
+      const mintKeypair = Keypair.generate();
       
-      // Create mint account
-      const mint = await createMint(
-        connection,
-        walletSigner,
-        publicKey, // mint authority
-        publicKey, // freeze authority (you can use null to disable)
-        parseInt(tokenData.decimals)
+      // Calculate rent-exempt balance
+      const rent = await getMinimumBalanceForRentExemptMint(connection);
+
+      // Create transaction for token mint
+      const transaction = new Transaction();
+      
+      // Add create account instruction
+      transaction.add(
+        SystemProgram.createAccount({
+          fromPubkey: publicKey,
+          newAccountPubkey: mintKeypair.publicKey,
+          space: MINT_SIZE,
+          lamports: rent,
+          programId: TOKEN_PROGRAM_ID
+        })
       );
 
-      // Get the token account of the fromWallet address, and if it does not exist, create it
+      // Add initialize mint instruction
+      transaction.add(
+        createInitializeMintInstruction(
+          mintKeypair.publicKey,
+          parseInt(tokenData.decimals),
+          publicKey,
+          publicKey,
+          TOKEN_PROGRAM_ID
+        )
+      );
+
+      // Get the associated token account
       const associatedTokenAccount = await getAssociatedTokenAddress(
-        mint,
+        mintKeypair.publicKey,
         publicKey
       );
 
-      // Mint tokens to the associated token account
-      const mintToInstruction = createMintToInstruction(
-        mint,
-        associatedTokenAccount,
-        publicKey,
-        parseInt(tokenData.totalSupply) * Math.pow(10, parseInt(tokenData.decimals))
+      // Add create associated token account instruction
+      transaction.add(
+        createAssociatedTokenAccountInstruction(
+          publicKey,
+          associatedTokenAccount,
+          publicKey,
+          mintKeypair.publicKey
+        )
       );
 
-      const transaction = new Transaction().add(mintToInstruction);
-      
-      // Get the latest blockhash
+      // Add mint to instruction
+      transaction.add(
+        createMintToInstruction(
+          mintKeypair.publicKey,
+          associatedTokenAccount,
+          publicKey,
+          parseInt(tokenData.totalSupply) * Math.pow(10, parseInt(tokenData.decimals))
+        )
+      );
+
+      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash();
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = publicKey;
 
-      // Sign and send the transaction
+      // Partial sign with the mint account
+      transaction.partialSign(mintKeypair);
+
+      // Request wallet signature
       const signedTx = await signTransaction(transaction);
+      
+      // Send and confirm transaction
       const txid = await connection.sendRawTransaction(signedTx.serialize());
       await connection.confirmTransaction(txid);
 
       toast.success('Token created successfully!');
-      console.log('Token mint address:', mint.toBase58());
+      console.log('Token mint address:', mintKeypair.publicKey.toBase58());
       console.log('Associated token account:', associatedTokenAccount.toBase58());
     } catch (error) {
       console.error('Token creation error:', error);
