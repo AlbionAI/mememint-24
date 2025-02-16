@@ -30,11 +30,5 @@ export default defineConfig(({ mode }) => ({
         global: 'globalThis'
       }
     }
-  },
-  build: {
-    rollupOptions: {
-      // Bundle buffer and process as external dependencies
-      external: ['buffer', 'process'],
-    }
   }
 }));

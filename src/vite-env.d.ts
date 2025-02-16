@@ -10,4 +10,5 @@ interface Window {
   solflare?: {
     isSolflare?: boolean;
   }
+  Buffer?: any;
 }
