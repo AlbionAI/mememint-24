@@ -42,18 +42,14 @@ export const TokenConfig = () => {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // Set canvas size to 500x500
         canvas.width = 500;
         canvas.height = 500;
         
         if (ctx) {
-          // Draw image to canvas, resizing it to 500x500
           ctx.drawImage(img, 0, 0, 500, 500);
           
-          // Convert canvas to blob
           canvas.toBlob((blob) => {
             if (blob) {
-              // Create new file from blob
               const resizedFile = new File([blob], file.name, {
                 type: 'image/png',
                 lastModified: Date.now(),
@@ -76,7 +72,6 @@ export const TokenConfig = () => {
       }
       
       try {
-        // Always resize to 500x500
         const resizedFile = await resizeImage(file);
         setTokenData(prev => ({ ...prev, logo: resizedFile }));
         toast.success('Image uploaded and resized to 500x500!');
@@ -88,7 +83,7 @@ export const TokenConfig = () => {
   };
 
   const calculateFees = () => {
-    let fees = 0.05; // Base fee
+    let fees = 0.05;
     if (tokenData.modifyCreator) fees += 0.1;
     if (tokenData.revokeFreeze) fees += 0.1;
     if (tokenData.revokeMint) fees += 0.1;
@@ -113,7 +108,6 @@ export const TokenConfig = () => {
     try {
       creationToast = toast.loading('Preparing token creation...');
 
-      // Handle logo upload first if present
       let logoUrl = null;
       if (tokenData.logo) {
         toast.loading('Uploading logo...', { id: creationToast });
@@ -131,7 +125,6 @@ export const TokenConfig = () => {
         console.log('Logo uploaded:', logoUrl);
       }
 
-      // Get RPC URL first to ensure connection
       toast.loading('Connecting to Solana...', { id: creationToast });
       const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
       if (rpcError) {
@@ -144,17 +137,17 @@ export const TokenConfig = () => {
         confirmTransactionInitialTimeout: 60000
       });
 
-      // Get recent blockhash
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       console.log('Initial blockhash:', blockhash);
 
-      // Calculate total fees
       const fees = calculateFees();
       console.log('Calculated fees:', fees);
 
-      // Create token
       toast.loading('Creating token transaction...', { id: creationToast });
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
+        headers: {
+          Authorization: `Bearer ${supabase.auth.getSession()?.access_token}`
+        },
         body: JSON.stringify({
           tokenName: tokenData.name,
           tokenSymbol: tokenData.symbol,
@@ -162,7 +155,15 @@ export const TokenConfig = () => {
           initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
           ownerAddress: publicKey.toString(),
           blockhash,
-          fees // Pass the calculated fees
+          fees,
+          website: tokenData.website,
+          twitter: tokenData.twitter,
+          telegram: tokenData.telegram,
+          discord: tokenData.discord,
+          description: tokenData.description,
+          revokeFreeze: tokenData.revokeFreeze,
+          revokeMint: tokenData.revokeMint,
+          revokeUpdate: tokenData.revokeUpdate
         })
       });
 
@@ -176,7 +177,6 @@ export const TokenConfig = () => {
       try {
         toast.loading(`Please approve the transaction (${fees} SOL)...`, { id: creationToast });
         
-        // Decode and process transaction
         const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         const transaction = Transaction.from(transactionBuffer);
         
@@ -187,11 +187,9 @@ export const TokenConfig = () => {
           totalFees: fees
         });
 
-        // Sign transaction
         const signedTransaction = await signTransaction(transaction);
         console.log('Transaction signed successfully');
 
-        // Send transaction
         toast.loading('Sending transaction...', { id: creationToast });
         const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
           skipPreflight: false,
@@ -200,7 +198,6 @@ export const TokenConfig = () => {
         });
         console.log('Transaction sent:', signature);
 
-        // Wait for confirmation
         toast.loading('Waiting for confirmation...', { id: creationToast });
         const confirmation = await connection.confirmTransaction(signature, 'confirmed');
 
@@ -209,8 +206,6 @@ export const TokenConfig = () => {
           throw new Error('Transaction failed on chain');
         }
 
-        // Save token metadata
-        toast.loading('Saving token details...', { id: creationToast });
         const { mintAddress } = tokenResponse;
         const metadata = {
           mint_address: mintAddress,
@@ -241,7 +236,6 @@ export const TokenConfig = () => {
           description: `Mint address: ${mintAddress}`
         });
 
-        // Reset form
         setTokenData({
           name: "",
           symbol: "",
