@@ -1,9 +1,9 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { Connection, PublicKey, Transaction, SystemProgram, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
-import { createMint, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction, ASSOCIATED_TOKEN_PROGRAM_ID, createAssociatedTokenAccountInstruction } from 'https://esm.sh/@solana/spl-token'
+import { createMint, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
-import { encode as base58encode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
+import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -102,19 +102,11 @@ serve(async (req) => {
       // Sign transaction with both keypairs
       transaction.sign(tokenCreatorKeypair, mintKeypair);
 
-      // Send the transaction
-      const signature = await connection.sendRawTransaction(transaction.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed'
-      });
+      // Serialize the transaction and encode it as base64
+      const serializedTransaction = transaction.serialize();
+      const base64Transaction = base64encode(serializedTransaction);
 
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature);
-      if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${confirmation.value.err}`);
-      }
-
-      console.log('Token created successfully. Signature:', signature);
+      console.log('Transaction created and serialized successfully');
 
       return new Response(
         JSON.stringify({
@@ -122,7 +114,7 @@ serve(async (req) => {
           mintAddress: mintKeypair.publicKey.toBase58(),
           tokenCreatorPublicKey: tokenCreatorKeypair.publicKey.toBase58(),
           feeCollectorPublicKey: feeCollectorKeypair.publicKey.toBase58(),
-          signature
+          transaction: base64Transaction
         }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
