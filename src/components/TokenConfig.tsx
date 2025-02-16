@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -7,7 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection } from '@solana/web3.js';
+import { Transaction, Connection, PublicKey } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -100,25 +101,52 @@ export const TokenConfig = () => {
       const connection = new Connection(rpcUrl, { commitment: 'confirmed' });
 
       try {
+        console.log('Decoding transaction...');
         const transactionBytes = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
         const transaction = Transaction.from(transactionBytes);
-        
+        console.log('Transaction decoded:', transaction);
+
+        // Get fresh blockhash
         const { blockhash } = await connection.getLatestBlockhash('confirmed');
         transaction.recentBlockhash = blockhash;
         transaction.feePayer = publicKey;
 
-        const signedTransaction = await signTransaction(transaction);
-
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
-          skipPreflight: true,
-          maxRetries: 3
+        console.log('Requesting signature...', {
+          numInstructions: transaction.instructions.length,
+          feePayer: transaction.feePayer?.toBase58(),
+          recentBlockhash: transaction.recentBlockhash
         });
 
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-
-        if (confirmation.value.err) {
-          throw new Error('Transaction failed on chain');
+        // Sign and send transaction with retries
+        let signedTransaction;
+        try {
+          signedTransaction = await signTransaction(transaction);
+          console.log('Transaction signed successfully');
+        } catch (error: any) {
+          console.error('Signing error:', error);
+          if (error?.name === 'WalletSignTransactionError') {
+            throw new Error('Failed to sign transaction. Please try again and approve the transaction in your wallet.');
+          }
+          throw error;
         }
+
+        console.log('Sending transaction...');
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 5
+        });
+        console.log('Transaction sent:', signature);
+
+        console.log('Confirming transaction...');
+        const { value: status } = await connection.confirmTransaction(signature, 'confirmed');
+        
+        if (status.err) {
+          console.error('Transaction failed:', status.err);
+          throw new Error('Transaction failed on chain. Please try again.');
+        }
+
+        console.log('Transaction confirmed successfully');
 
         const { mintAddress } = tokenResponse;
         const optionalFields = {
@@ -166,20 +194,32 @@ export const TokenConfig = () => {
         });
         setCurrentStep(1);
 
-      } catch (error) {
+      } catch (error: any) {
         console.error('Transaction error:', error);
-        throw new Error(`Transaction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const errorMessage = error.message || 'Transaction failed';
+        
+        // Handle specific wallet errors
+        if (error?.name === 'WalletSignTransactionError') {
+          toast.error('Failed to sign transaction', {
+            description: 'Please try again and approve the transaction in your wallet'
+          });
+        } else {
+          toast.error('Transaction failed', { description: errorMessage });
+        }
+        throw error;
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Token creation error:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error occurred';
+      const message = error.message || 'Unknown error occurred';
       
-      toast.error('Failed to create token', {
-        description: message.includes('insufficient funds')
-          ? 'Insufficient SOL balance. Please make sure you have enough SOL to cover the transaction fees.'
-          : message
-      });
+      if (!message.includes('Failed to sign transaction')) {
+        toast.error('Failed to create token', {
+          description: message.includes('insufficient funds')
+            ? 'Insufficient SOL balance. Please make sure you have enough SOL to cover the transaction fees.'
+            : message
+        });
+      }
     } finally {
       setIsCreating(false);
     }

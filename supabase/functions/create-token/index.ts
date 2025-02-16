@@ -29,13 +29,6 @@ serve(async (req) => {
       throw new Error('SOLANA_PRIVATE_KEY is not set');
     }
 
-    console.log('Initializing token creation with params:', {
-      name: tokenName,
-      symbol: tokenSymbol,
-      decimals,
-      ownerAddress
-    });
-
     let tokenCreatorKeypair: Keypair;
     try {
       const privateKeyBytes = base58decode(tokenCreatorPrivateKey);
@@ -55,7 +48,7 @@ serve(async (req) => {
       console.log('Generated mint address:', mintKeypair.publicKey.toString());
 
       // Get minimum balance without using bigint
-      const rentExemptBalance = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+      const rentExemptBalance = await getMinimumBalanceForRentExemptMint(connection);
       console.log('Rent exempt balance required:', rentExemptBalance / LAMPORTS_PER_SOL, 'SOL');
 
       const creatorBalance = await connection.getBalance(tokenCreatorKeypair.publicKey);
@@ -66,31 +59,33 @@ serve(async (req) => {
       }
 
       const transaction = new Transaction();
-      const recentBlockhash = await connection.getLatestBlockhash('confirmed');
       
-      transaction.recentBlockhash = recentBlockhash.blockhash;
+      // Get fresh blockhash
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      transaction.recentBlockhash = blockhash;
       transaction.feePayer = new PublicKey(ownerAddress);
 
-      // Add instructions to transaction
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: new PublicKey(ownerAddress),
-          newAccountPubkey: mintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports: rentExemptBalance,
-          programId: TOKEN_PROGRAM_ID
-        })
+      // Create account instruction
+      const createAccountInstruction = SystemProgram.createAccount({
+        fromPubkey: new PublicKey(ownerAddress),
+        newAccountPubkey: mintKeypair.publicKey,
+        space: MINT_SIZE,
+        lamports: rentExemptBalance,
+        programId: TOKEN_PROGRAM_ID
+      });
+
+      // Initialize mint instruction
+      const initializeMintInstruction = createInitializeMintInstruction(
+        mintKeypair.publicKey,
+        decimals,
+        new PublicKey(ownerAddress),
+        new PublicKey(ownerAddress),
+        TOKEN_PROGRAM_ID
       );
 
-      transaction.add(
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          decimals,
-          new PublicKey(ownerAddress),
-          new PublicKey(ownerAddress),
-          TOKEN_PROGRAM_ID
-        )
-      );
+      // Add instructions to transaction
+      transaction.add(createAccountInstruction);
+      transaction.add(initializeMintInstruction);
 
       // Sign with mint keypair
       transaction.partialSign(mintKeypair);
