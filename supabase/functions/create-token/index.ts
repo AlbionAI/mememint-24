@@ -14,6 +14,24 @@ const corsHeaders = (origin: string) => ({
   'Access-Control-Max-Age': '86400'
 });
 
+interface CreateTokenRequest {
+  tokenName: string;
+  tokenSymbol: string;
+  decimals: number;
+  initialSupply: number;
+  ownerAddress: string;
+  blockhash: string;
+  fees: number;
+  website?: string;
+  twitter?: string;
+  telegram?: string;
+  discord?: string;
+  description?: string;
+  revokeFreeze?: boolean;
+  revokeMint?: boolean;
+  revokeUpdate?: boolean;
+}
+
 serve(async (req) => {
   const origin = req.headers.get('origin') || allowedOrigins[0];
   
@@ -25,11 +43,28 @@ serve(async (req) => {
   }
 
   try {
-    // Simple test response
+    if (req.method !== 'POST') {
+      throw new Error('Method not allowed');
+    }
+
+    // Parse request body
+    const requestData: CreateTokenRequest = await req.json();
+    console.log('Received request data:', requestData);
+
+    // Validate required fields
+    if (!requestData.tokenName || !requestData.tokenSymbol || 
+        !requestData.decimals || !requestData.initialSupply || 
+        !requestData.ownerAddress || !requestData.blockhash) {
+      throw new Error('Missing required fields');
+    }
+
+    // For now, just return success with the validated data
+    // We'll add the actual token creation logic in the next step
     return new Response(
       JSON.stringify({
         success: true,
-        message: "Function is working"
+        message: "Validation successful",
+        data: requestData
       }),
       { 
         headers: { 
@@ -47,7 +82,7 @@ serve(async (req) => {
         error: error instanceof Error ? error.message : 'Unknown error occurred'
       }),
       {
-        status: 500,
+        status: error instanceof Error && error.message === 'Method not allowed' ? 405 : 500,
         headers: {
           ...corsHeaders(origin),
           'Content-Type': 'application/json'
