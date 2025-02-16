@@ -25,6 +25,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders })
   }
@@ -32,11 +33,23 @@ serve(async (req) => {
   try {
     console.log('Starting request processing...');
     const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash, fees } = await req.json();
+    
+    // Validate required environment variables
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
     const feeCollectorAddress = Deno.env.get('FEE_COLLECTOR_ADDRESS');
     
     if (!rpcUrl || !feeCollectorAddress) {
       throw new Error('Required environment variables are not set');
+    }
+
+    // Validate required parameters
+    if (!tokenName || !tokenSymbol || !ownerAddress || !blockhash || fees === undefined) {
+      throw new Error('Missing required parameters');
+    }
+
+    // Validate fees
+    if (typeof fees !== 'number' || fees < 0.05) {
+      throw new Error('Invalid fee amount. Minimum fee is 0.05 SOL');
     }
 
     console.log('Creating connection to Solana...');
@@ -65,6 +78,13 @@ serve(async (req) => {
         console.error('Invalid fee collector address:', error);
         throw new Error('Invalid fee collector configuration');
       }
+
+      // Check owner account balance
+      const balance = await connection.getBalance(ownerPublicKey);
+      const requiredBalance = fees * LAMPORTS_PER_SOL;
+      if (balance < requiredBalance) {
+        throw new Error(`Insufficient balance. Required: ${fees} SOL`);
+      }
       
       // Generate new mint account
       const mintKeypair = Keypair.generate();
@@ -86,6 +106,7 @@ serve(async (req) => {
 
       // Create fee transfer instruction
       const feeLamports = fees * LAMPORTS_PER_SOL;
+      console.log('Creating fee transfer instruction for', feeLamports, 'lamports');
       const feeTransferIx = SystemProgram.transfer({
         fromPubkey: ownerPublicKey,
         toPubkey: feeCollectorPublicKey,
@@ -100,7 +121,7 @@ serve(async (req) => {
       // Add fee transfer as the first instruction
       transaction.add(feeTransferIx);
 
-      // Add create mint account instruction
+      // Create mint account instruction
       const createMintAccountIx = SystemProgram.createAccount({
         fromPubkey: ownerPublicKey,
         newAccountPubkey: mintKeypair.publicKey,
@@ -109,7 +130,7 @@ serve(async (req) => {
         programId: TOKEN_PROGRAM_ID
       });
       
-      // Add initialize mint instruction
+      // Initialize mint instruction
       const initializeMintIx = createInitializeMintInstruction(
         mintKeypair.publicKey,
         decimals,
@@ -118,7 +139,7 @@ serve(async (req) => {
         TOKEN_PROGRAM_ID
       );
 
-      // Add create associated token account instruction
+      // Create associated token account instruction
       const createATAIx = createAssociatedTokenAccountInstruction(
         ownerPublicKey,
         associatedTokenAddress,
