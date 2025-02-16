@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -8,7 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection } from '@solana/web3.js';
+import { Transaction, Connection, VersionedTransaction } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -114,21 +113,15 @@ export const TokenConfig = () => {
       });
 
       try {
-        // Convert base64 to Uint8Array using browser API
-        const binaryString = atob(tokenResponse.transaction);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        console.log('Transaction bytes:', bytes);
-
-        // Create transaction from bytes
-        const transaction = Transaction.from(bytes);
+        // Decode the base64 transaction
+        const transactionBuffer = Buffer.from(tokenResponse.transaction, 'base64');
+        
+        // Create transaction from buffer
+        const transaction = Transaction.from(transactionBuffer);
         console.log('Transaction reconstructed:', transaction);
 
         // Get a recent blockhash
-        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+        const { blockhash } = await connection.getLatestBlockhash('confirmed');
         
         // Update the transaction's blockhash
         transaction.recentBlockhash = blockhash;
@@ -138,22 +131,19 @@ export const TokenConfig = () => {
         const signedTransaction = await signTransaction(transaction);
         console.log('Transaction signed successfully');
 
-        // Send the transaction
-        const signature = await connection.sendRawTransaction(
-          signedTransaction.serialize(),
-          {
-            maxRetries: 5,
-            skipPreflight: true // Skip preflight to avoid some common errors
-          }
-        );
+        // Send the transaction with preflight disabled and maximum retries
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+          skipPreflight: true,
+          maxRetries: 5,
+          preflightCommitment: 'confirmed'
+        });
         console.log('Transaction sent, signature:', signature);
 
-        // Wait for confirmation
-        const confirmation = await connection.confirmTransaction({
-          signature,
-          blockhash,
-          lastValidBlockHeight
-        });
+        // Wait for confirmation with extended timeout
+        const confirmation = await connection.confirmTransaction(
+          signature, 
+          'confirmed'
+        );
         console.log('Transaction confirmation:', confirmation);
 
         if (confirmation.value.err) {
