@@ -52,7 +52,61 @@ export const TokenConfig = () => {
   });
 
   const handleCreateToken = async () => {
-    toast.info('Token creation is being implemented');
+    if (!publicKey) {
+      toast.error('Please connect your wallet first');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      // Calculate total fees based on selected options
+      let fees = 0.05; // Base cost
+      if (tokenData.modifyCreator) fees += 0.1;
+      if (tokenData.revokeFreeze) fees += 0.1;
+      if (tokenData.revokeMint) fees += 0.1;
+      if (tokenData.revokeUpdate) fees += 0.1;
+
+      // Call the create-token edge function
+      const response = await fetch('/functions/v1/create-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tokenName: tokenData.name,
+          tokenSymbol: tokenData.symbol,
+          decimals: parseInt(tokenData.decimals),
+          initialSupply: parseInt(tokenData.totalSupply),
+          ownerAddress: publicKey.toBase58(),
+          fees,
+          website: tokenData.website,
+          twitter: tokenData.twitter,
+          telegram: tokenData.telegram,
+          discord: tokenData.discord,
+          description: tokenData.description,
+          revokeFreeze: tokenData.revokeFreeze,
+          revokeMint: tokenData.revokeMint,
+          revokeUpdate: tokenData.revokeUpdate
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create token');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        toast.success('Token created successfully!');
+      } else {
+        throw new Error(result.error || 'Failed to create token');
+      }
+    } catch (error) {
+      console.error('Token creation error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create token');
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
