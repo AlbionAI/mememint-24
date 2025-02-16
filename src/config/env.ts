@@ -1,2 +1,4 @@
 
-export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://mememintco.netlify.app';
+// The Supabase project ID is used to construct the Edge Function URL
+const PROJECT_ID = 'ouvhbnbdczqpyvtkonzg';
+export const BACKEND_URL = `https://${PROJECT_ID}.functions.supabase.co`;

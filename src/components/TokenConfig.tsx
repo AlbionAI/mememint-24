@@ -84,7 +84,7 @@ export const TokenConfig = () => {
         mintAuthority: true
       };
       
-      const apiUrl = `${BACKEND_URL}/api/create-token`;
+      const apiUrl = `${BACKEND_URL}/create-token`; // Removed /api prefix as it's not needed for Supabase functions
       console.log('Sending request to:', apiUrl);
       console.log('Request body:', requestBody);
 
@@ -92,6 +92,7 @@ export const TokenConfig = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`, // Add Authorization header for Supabase
         },
         body: JSON.stringify(requestBody),
       });
