@@ -1,11 +1,11 @@
 
 import { useState } from "react";
+import { TokenBasicDetails } from "@/components/token/TokenBasicDetails";
+import { TokenSupplyDetails } from "@/components/token/TokenSupplyDetails";
+import { TokenSocialDetails } from "@/components/token/TokenSocialDetails";
+import { StepTracker } from "@/components/token/StepTracker";
+import { TokenCreation } from "@/components/TokenCreation";
 import { toast } from "sonner";
-import { StepTracker } from "./token/StepTracker";
-import { WalletCard } from "./token/WalletCard";
-import { TokenBasicDetails } from "./token/TokenBasicDetails";
-import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
-import { TokenSocialDetails } from "./token/TokenSocialDetails";
 
 export const TokenConfig = () => {
   const [step, setStep] = useState(1);
@@ -13,131 +13,85 @@ export const TokenConfig = () => {
     name: "",
     symbol: "",
     logo: null as File | null,
-    decimals: "9",
-    totalSupply: "1000000000",
+    decimals: "",
+    totalSupply: "",
     description: "",
     website: "",
     twitter: "",
     telegram: "",
     discord: "",
-    creatorName: "MemeMint",
-    creatorWebsite: "https://mememint.co",
-    modifyCreator: false,
-    revokeFreeze: false,
-    revokeMint: false,
-    revokeUpdate: false
+    creatorName: "",
+    creatorWebsite: "",
+    modifyCreator: true,
+    revokeFreeze: true,
+    revokeMint: true,
+    revokeUpdate: true
   });
-
-  const resizeImage = (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 500;
-        canvas.height = 500;
-        const ctx = canvas.getContext('2d');
-        
-        if (!ctx) {
-          URL.revokeObjectURL(img.src);
-          reject(new Error('Could not get canvas context'));
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, 500, 500);
-        
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            URL.revokeObjectURL(img.src);
-            reject(new Error('Could not convert canvas to blob'));
-            return;
-          }
-          
-          const resizedFile = new File([blob], file.name, {
-            type: 'image/png',
-            lastModified: Date.now(),
-          });
-          
-          URL.revokeObjectURL(img.src);
-          resolve(resizedFile);
-        }, 'image/png');
-      };
-
-      img.onerror = () => {
-        URL.revokeObjectURL(img.src);
-        reject(new Error('Error loading image'));
-      };
-    });
-  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("File size must be less than 5MB");
       return;
     }
 
-    if (!file.type.startsWith('image/')) {
+    // Check file type
+    if (!file.type.startsWith("image/")) {
       toast.error("File must be an image");
       return;
     }
 
-    try {
-      const resizedFile = await resizeImage(file);
-      setTokenData(prev => ({ ...prev, logo: resizedFile }));
-      toast.success("Logo uploaded and resized successfully!");
-    } catch (error) {
-      toast.error("Error processing image");
-      console.error(error);
-    }
+    setTokenData({ ...tokenData, logo: file });
   };
 
   const handleNext = () => {
-    if (!tokenData.name || !tokenData.symbol || !tokenData.logo) {
-      toast.error("Please fill in all fields and upload a logo");
+    if (step === 1 && (!tokenData.name || !tokenData.symbol || !tokenData.logo)) {
+      toast.error("Please fill in all required fields");
       return;
     }
-    setStep(2);
+    setStep(step + 1);
+  };
+
+  const handleBack = () => {
+    setStep(step - 1);
   };
 
   return (
     <div className="space-y-8">
       <StepTracker currentStep={step} />
+      
+      {step === 1 && (
+        <TokenBasicDetails 
+          tokenData={tokenData}
+          onTokenDataChange={setTokenData}
+          onNext={handleNext}
+          handleFileChange={handleFileChange}
+        />
+      )}
+      
+      {step === 2 && (
+        <TokenSupplyDetails 
+          tokenData={tokenData}
+          onTokenDataChange={setTokenData}
+          onBack={handleBack}
+          onNext={handleNext}
+        />
+      )}
+      
+      {step === 3 && (
+        <TokenSocialDetails 
+          tokenData={tokenData}
+          onTokenDataChange={setTokenData}
+          onBack={handleBack}
+        />
+      )}
 
-      <div className="grid gap-8 md:grid-cols-2">
-        <div>
-          {step === 1 && (
-            <TokenBasicDetails 
-              tokenData={tokenData}
-              onTokenDataChange={setTokenData}
-              onNext={handleNext}
-              handleFileChange={handleFileChange}
-            />
-          )}
-
-          {step === 2 && (
-            <TokenSupplyDetails 
-              tokenData={tokenData}
-              onTokenDataChange={setTokenData}
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
-            />
-          )}
-
-          {step === 3 && (
-            <TokenSocialDetails 
-              tokenData={tokenData}
-              onTokenDataChange={setTokenData}
-              onBack={() => setStep(2)}
-            />
-          )}
-        </div>
-
-        <WalletCard />
-      </div>
+      {step === 4 && (
+        <TokenCreation />
+      )}
     </div>
   );
 };
