@@ -48,7 +48,7 @@ type TokenData = {
 export const TokenConfig = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
-  const { publicKey, signTransaction } = useWallet();
+  const { publicKey, signTransaction, disconnect } = useWallet();
   
   const [tokenData, setTokenData] = useState<TokenData>({
     name: "",
@@ -79,6 +79,16 @@ export const TokenConfig = () => {
     try {
       const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
+      // Request airdrop first
+      const airdropSignature = await connection.requestAirdrop(
+        publicKey,
+        2 * LAMPORTS_PER_SOL // Request 2 SOL to cover creation costs
+      );
+      
+      // Wait for airdrop confirmation
+      await connection.confirmTransaction(airdropSignature);
+      console.log('Airdrop completed');
+
       // Generate a new keypair for the mint
       const mintKeypair = Keypair.generate();
       
@@ -177,7 +187,15 @@ export const TokenConfig = () => {
 
   return (
     <div className="space-y-8">
-      <StepTracker currentStep={currentStep} />
+      <div className="flex justify-between items-center">
+        <StepTracker currentStep={currentStep} />
+        <button
+          onClick={() => disconnect()}
+          className="px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-600 transition-all duration-200"
+        >
+          Disconnect Wallet
+        </button>
+      </div>
       
       <div className="grid gap-8">
         {currentStep === 1 && (
