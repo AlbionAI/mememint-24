@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
 import { Transaction } from '@solana/web3.js';
+import { Connection } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -104,22 +105,29 @@ export const TokenConfig = () => {
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
-      // Sign the fee transaction first
-      const feeTransaction = Transaction.from(Buffer.from(tokenResponse.feeTransaction, 'base64'));
-      const signedFeeTransaction = await signTransaction(feeTransaction);
-      const serializedFeeTransaction = Buffer.from(signedFeeTransaction.serialize()).toString('base64');
+      // Create connection to Solana
+      const connection = new Connection("https://api.mainnet-beta.solana.com");
 
-      // Now send both transactions back to be executed
-      const { data: executeResponse, error: executeError } = await supabase.functions.invoke('execute-transactions', {
-        body: JSON.stringify({
-          feeTransaction: serializedFeeTransaction,
-          tokenTransaction: tokenResponse.tokenTransaction,
-          mintAddress: tokenResponse.mintAddress
-        })
-      });
+      // Reconstruct and sign the transaction
+      const reconstructedTransaction = Transaction.from(
+        Buffer.from(tokenResponse.transaction, 'base64')
+      );
+      
+      console.log('Transaction reconstructed:', reconstructedTransaction);
 
-      if (executeError || !executeResponse.success) {
-        throw new Error(executeError?.message || executeResponse?.error || 'Failed to execute transactions');
+      const signedTransaction = await signTransaction(reconstructedTransaction);
+      console.log('Transaction signed successfully');
+
+      // Send and confirm the transaction
+      const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+      console.log('Transaction sent, signature:', signature);
+
+      // Wait for confirmation
+      const confirmation = await connection.confirmTransaction(signature);
+      console.log('Transaction confirmation:', confirmation);
+
+      if (confirmation.value.err) {
+        throw new Error(`Transaction failed: ${confirmation.value.err}`);
       }
 
       // Store token details in Supabase
