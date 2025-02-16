@@ -7,6 +7,24 @@ import { WalletCard } from "./token/WalletCard";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
+import { 
+  Connection, 
+  PublicKey, 
+  SystemProgram, 
+  Transaction,
+  clusterApiUrl,
+  LAMPORTS_PER_SOL
+} from '@solana/web3.js';
+import { 
+  createInitializeMintInstruction,
+  getMinimumBalanceForRentExemptMint,
+  MINT_SIZE,
+  TOKEN_PROGRAM_ID,
+  createMint,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+  createMintToInstruction
+} from '@solana/spl-token';
 
 type TokenData = {
   name: string;
@@ -52,55 +70,53 @@ export const TokenConfig = () => {
   });
 
   const handleCreateToken = async () => {
-    if (!publicKey) {
+    if (!publicKey || !signTransaction) {
       toast.error('Please connect your wallet first');
       return;
     }
 
     setIsCreating(true);
     try {
-      // Calculate total fees based on selected options
-      let fees = 0.05; // Base cost
-      if (tokenData.modifyCreator) fees += 0.1;
-      if (tokenData.revokeFreeze) fees += 0.1;
-      if (tokenData.revokeMint) fees += 0.1;
-      if (tokenData.revokeUpdate) fees += 0.1;
-
-      // Call the create-token edge function
-      const response = await fetch('/functions/v1/create-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tokenName: tokenData.name,
-          tokenSymbol: tokenData.symbol,
-          decimals: parseInt(tokenData.decimals),
-          initialSupply: parseInt(tokenData.totalSupply),
-          ownerAddress: publicKey.toBase58(),
-          fees,
-          website: tokenData.website,
-          twitter: tokenData.twitter,
-          telegram: tokenData.telegram,
-          discord: tokenData.discord,
-          description: tokenData.description,
-          revokeFreeze: tokenData.revokeFreeze,
-          revokeMint: tokenData.revokeMint,
-          revokeUpdate: tokenData.revokeUpdate
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create token');
-      }
-
-      const result = await response.json();
+      const connection = new Connection(clusterApiUrl('devnet'), 'confirmed');
       
-      if (result.success) {
-        toast.success('Token created successfully!');
-      } else {
-        throw new Error(result.error || 'Failed to create token');
-      }
+      // Create mint account
+      const mint = await createMint(
+        connection,
+        { publicKey, signTransaction },
+        publicKey, // mint authority
+        publicKey, // freeze authority (you can use null to disable)
+        parseInt(tokenData.decimals)
+      );
+
+      // Get the token account of the fromWallet address, and if it does not exist, create it
+      const associatedTokenAccount = await getAssociatedTokenAddress(
+        mint,
+        publicKey
+      );
+
+      // Mint tokens to the associated token account
+      const mintToInstruction = createMintToInstruction(
+        mint,
+        associatedTokenAccount,
+        publicKey,
+        parseInt(tokenData.totalSupply) * Math.pow(10, parseInt(tokenData.decimals))
+      );
+
+      const transaction = new Transaction().add(mintToInstruction);
+      
+      // Get the latest blockhash
+      const { blockhash } = await connection.getLatestBlockhash();
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = publicKey;
+
+      // Sign and send the transaction
+      const signedTx = await signTransaction(transaction);
+      const txid = await connection.sendRawTransaction(signedTx.serialize());
+      await connection.confirmTransaction(txid);
+
+      toast.success('Token created successfully!');
+      console.log('Token mint address:', mint.toBase58());
+      console.log('Associated token account:', associatedTokenAccount.toBase58());
     } catch (error) {
       console.error('Token creation error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create token');
