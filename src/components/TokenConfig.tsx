@@ -1,13 +1,13 @@
 
 import { useState } from "react";
 import { useWallet } from '@solana/wallet-adapter-react';
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "./ui/card";
 import { useToast } from "./ui/use-toast";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
 import { TokenSocialDetails } from "./token/TokenSocialDetails";
 import { StepTracker } from "./token/StepTracker";
+import { BACKEND_URL } from "@/config/env";
 
 type TokenData = {
   name: string;
@@ -70,16 +70,24 @@ export const TokenConfig = () => {
 
     setIsCreating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('create-token', {
-        body: {
+      const response = await fetch(`${BACKEND_URL}/api/create-token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           walletPublicKey: publicKey.toString(),
           ...tokenData,
           addMetadata: true,
           mintAuthority: true
-        },
+        }),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Failed to create token');
+      }
+
+      const data = await response.json();
       
       toast({
         title: "Success",
