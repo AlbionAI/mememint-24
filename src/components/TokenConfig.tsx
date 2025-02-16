@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -34,6 +33,39 @@ export const TokenConfig = () => {
     revokeUpdate: true
   });
 
+  const resizeImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size to 500x500
+        canvas.width = 500;
+        canvas.height = 500;
+        
+        if (ctx) {
+          // Draw image to canvas, resizing it to 500x500
+          ctx.drawImage(img, 0, 0, 500, 500);
+          
+          // Convert canvas to blob
+          canvas.toBlob((blob) => {
+            if (blob) {
+              // Create new file from blob
+              const resizedFile = new File([blob], file.name, {
+                type: 'image/png',
+                lastModified: Date.now(),
+              });
+              resolve(resizedFile);
+            }
+          }, 'image/png', 1);
+        }
+      };
+    });
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -43,23 +75,15 @@ export const TokenConfig = () => {
         return;
       }
       
-      // Validate image dimensions
-      const img = new Image();
-      img.src = URL.createObjectURL(file);
-      await new Promise((resolve) => {
-        img.onload = () => {
-          if (img.width !== img.height) {
-            toast.error('Image must be square (same width and height)');
-            return;
-          }
-          if (img.width < 200 || img.width > 500) {
-            toast.error('Image dimensions must be between 200x200 and 500x500 pixels');
-            return;
-          }
-          setTokenData(prev => ({ ...prev, logo: file }));
-          resolve(true);
-        };
-      });
+      try {
+        // Always resize to 500x500
+        const resizedFile = await resizeImage(file);
+        setTokenData(prev => ({ ...prev, logo: resizedFile }));
+        toast.success('Image uploaded and resized to 500x500!');
+      } catch (error) {
+        toast.error('Failed to process image');
+        console.error('Image processing error:', error);
+      }
     }
   };
 
