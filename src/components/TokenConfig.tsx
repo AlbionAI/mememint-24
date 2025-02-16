@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -8,8 +7,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction } from '@solana/web3.js';
-import { Connection } from '@solana/web3.js';
+import { Transaction, Connection } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -108,11 +106,11 @@ export const TokenConfig = () => {
       // Create connection to Solana
       const connection = new Connection("https://api.mainnet-beta.solana.com");
 
-      // Reconstruct and sign the transaction
-      const reconstructedTransaction = Transaction.from(
-        Buffer.from(tokenResponse.transaction, 'base64')
-      );
+      // Convert base64 to Uint8Array
+      const transactionBytes = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
       
+      // Reconstruct transaction from bytes
+      const reconstructedTransaction = Transaction.from(transactionBytes);
       console.log('Transaction reconstructed:', reconstructedTransaction);
 
       const signedTransaction = await signTransaction(reconstructedTransaction);
@@ -122,8 +120,8 @@ export const TokenConfig = () => {
       const signature = await connection.sendRawTransaction(signedTransaction.serialize());
       console.log('Transaction sent, signature:', signature);
 
-      // Wait for confirmation
-      const confirmation = await connection.confirmTransaction(signature);
+      // Wait for confirmation with explicit commitment
+      const confirmation = await connection.confirmTransaction(signature, 'confirmed');
       console.log('Transaction confirmation:', confirmation);
 
       if (confirmation.value.err) {
