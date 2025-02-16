@@ -5,24 +5,8 @@ import { TokenSocialDetails } from "./token/TokenSocialDetails";
 import { useWallet } from '@solana/wallet-adapter-react';
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { 
-  Connection, 
-  PublicKey, 
-  Transaction,
-  clusterApiUrl,
-  LAMPORTS_PER_SOL,
-  Keypair,
-  SystemProgram
-} from '@solana/web3.js';
-import { 
-  createInitializeMintInstruction,
-  getMinimumBalanceForRentExemptMint,
-  MINT_SIZE,
-  TOKEN_PROGRAM_ID,
-  getAssociatedTokenAddress,
-  createAssociatedTokenAccountInstruction,
-  createMintToInstruction
-} from '@solana/spl-token';
+import { Connection, clusterApiUrl, LAMPORTS_PER_SOL } from '@solana/web3.js';
+import { createTokenFromTemplate, TokenTemplate } from "../utils/tokenTemplates";
 
 type TokenData = {
   name: string;
@@ -84,75 +68,28 @@ export const TokenConfig = () => {
         toast.error('Insufficient SOL balance. You need at least 0.1 SOL to create a token.');
         return;
       }
-      
-      const mintKeypair = Keypair.generate();
-      
-      const rent = await getMinimumBalanceForRentExemptMint(connection);
 
-      const transaction = new Transaction();
-      
-      transaction.add(
-        SystemProgram.createAccount({
-          fromPubkey: publicKey,
-          newAccountPubkey: mintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports: rent,
-          programId: TOKEN_PROGRAM_ID
-        })
+      const template: TokenTemplate = {
+        name: tokenData.name,
+        symbol: tokenData.symbol,
+        decimals: parseInt(tokenData.decimals),
+        initialSupply: parseInt(tokenData.totalSupply),
+        mintAuthority: publicKey,
+        freezeAuthority: tokenData.revokeFreeze ? null : publicKey
+      };
+
+      const result = await createTokenFromTemplate(
+        connection,
+        publicKey,
+        signTransaction,
+        template
       );
-
-      transaction.add(
-        createInitializeMintInstruction(
-          mintKeypair.publicKey,
-          parseInt(tokenData.decimals),
-          publicKey,
-          publicKey,
-          TOKEN_PROGRAM_ID
-        )
-      );
-
-      const associatedTokenAccount = await getAssociatedTokenAddress(
-        mintKeypair.publicKey,
-        publicKey
-      );
-
-      transaction.add(
-        createAssociatedTokenAccountInstruction(
-          publicKey,
-          associatedTokenAccount,
-          publicKey,
-          mintKeypair.publicKey
-        )
-      );
-
-      transaction.add(
-        createMintToInstruction(
-          mintKeypair.publicKey,
-          associatedTokenAccount,
-          publicKey,
-          parseInt(tokenData.totalSupply) * Math.pow(10, parseInt(tokenData.decimals))
-        )
-      );
-
-      const { blockhash } = await connection.getLatestBlockhash();
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = publicKey;
-
-      transaction.partialSign(mintKeypair);
-
-      const signedTx = await signTransaction(transaction);
-      
-      const txid = await connection.sendRawTransaction(signedTx.serialize());
-      const confirmation = await connection.confirmTransaction(txid);
-      
-      if (confirmation.value.err) {
-        throw new Error('Transaction failed to confirm');
-      }
 
       toast.success('Token created successfully!');
-      console.log('Token mint address:', mintKeypair.publicKey.toBase58());
-      console.log('Transaction signature:', txid);
-      console.log('Associated token account:', associatedTokenAccount.toBase58());
+      console.log('Token mint address:', result.mintAddress);
+      console.log('Transaction signature:', result.signature);
+      console.log('Token account:', result.tokenAccount);
+      
     } catch (error) {
       console.error('Token creation error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create token');
