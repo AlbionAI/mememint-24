@@ -17,7 +17,6 @@ import {
   createMintToInstruction,
   ASSOCIATED_TOKEN_PROGRAM_ID
 } from 'https://esm.sh/@solana/spl-token@0.3.8?target=es2022'
-import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 
 const corsHeaders = {
@@ -32,7 +31,7 @@ serve(async (req) => {
 
   try {
     console.log('Starting request processing...');
-    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash } = await req.json();
+    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash, fees } = await req.json();
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
     
     if (!rpcUrl) {
@@ -131,21 +130,11 @@ serve(async (req) => {
       // Partially sign with mint account
       transaction.partialSign(mintKeypair);
 
-      // Calculate fees for better UX
-      const fees = await connection.getFeeForMessage(
-        transaction.compileMessage(),
-        'confirmed'
-      );
-      
-      console.log('Estimated fees:', fees.value / LAMPORTS_PER_SOL, 'SOL');
-
-      // Serialize the transaction
-      const serializedTransaction = transaction.serialize({
+      const base64Transaction = base64encode(transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false
-      });
-
-      const base64Transaction = base64encode(serializedTransaction);
+      }));
+      
       console.log('Transaction created successfully');
 
       return new Response(
@@ -153,7 +142,7 @@ serve(async (req) => {
           success: true,
           mintAddress: mintKeypair.publicKey.toString(),
           transaction: base64Transaction,
-          estimatedFees: fees.value / LAMPORTS_PER_SOL
+          totalFees: fees // Use the fees passed from the frontend
         }),
         { 
           headers: { 

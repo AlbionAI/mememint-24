@@ -47,6 +47,15 @@ export const TokenConfig = () => {
     }
   };
 
+  const calculateFees = () => {
+    let fees = 0.05; // Base fee
+    if (tokenData.modifyCreator) fees += 0.1;
+    if (tokenData.revokeFreeze) fees += 0.1;
+    if (tokenData.revokeMint) fees += 0.1;
+    if (tokenData.revokeUpdate) fees += 0.1;
+    return fees;
+  };
+
   const handleCreateToken = async () => {
     if (!publicKey || !signTransaction) {
       toast.error('Please connect your wallet first');
@@ -99,6 +108,9 @@ export const TokenConfig = () => {
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       console.log('Initial blockhash:', blockhash);
 
+      // Calculate total fees
+      const fees = calculateFees();
+
       // Create token
       toast.loading('Creating token transaction...', { id: creationToast });
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
@@ -108,7 +120,8 @@ export const TokenConfig = () => {
           decimals: Number(tokenData.decimals),
           initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
           ownerAddress: publicKey.toString(),
-          blockhash
+          blockhash,
+          fees // Pass the calculated fees
         })
       });
 
@@ -120,7 +133,7 @@ export const TokenConfig = () => {
       console.log('Token creation response:', tokenResponse);
 
       try {
-        toast.loading('Please approve the transaction in your wallet...', { id: creationToast });
+        toast.loading(`Please approve the transaction (${fees} SOL)...`, { id: creationToast });
         
         // Decode and process transaction
         const transactionBuffer = Uint8Array.from(atob(tokenResponse.transaction), c => c.charCodeAt(0));
@@ -130,7 +143,7 @@ export const TokenConfig = () => {
           feePayer: transaction.feePayer?.toString(),
           recentBlockhash: transaction.recentBlockhash,
           instructions: transaction.instructions.length,
-          estimatedFees: tokenResponse.estimatedFees
+          totalFees: fees
         });
 
         // Sign transaction
@@ -163,12 +176,12 @@ export const TokenConfig = () => {
           token_name: tokenData.name,
           token_symbol: tokenData.symbol,
           decimals: Number(tokenData.decimals),
-          ...(tokenData.description ? { description: tokenData.description } : {}),
-          ...(tokenData.website ? { website: tokenData.website } : {}),
-          ...(tokenData.twitter ? { twitter: tokenData.twitter } : {}),
-          ...(tokenData.telegram ? { telegram: tokenData.telegram } : {}),
-          ...(tokenData.discord ? { discord: tokenData.discord } : {}),
-          ...(logoUrl ? { logo_url: logoUrl } : {}),
+          description: tokenData.description || null,
+          website: tokenData.website || null,
+          twitter: tokenData.twitter || null,
+          telegram: tokenData.telegram || null,
+          discord: tokenData.discord || null,
+          logo_url: logoUrl,
           owner_address: publicKey.toString(),
           created_at: new Date().toISOString()
         };
