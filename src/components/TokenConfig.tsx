@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { TokenBasicDetails } from "./token/TokenBasicDetails";
 import { TokenSupplyDetails } from "./token/TokenSupplyDetails";
@@ -109,7 +108,6 @@ export const TokenConfig = () => {
     try {
       creationToast = toast.loading('Preparing token creation...');
 
-      // Get session for authorization
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         throw new Error(`Session error: ${sessionError.message}`);
@@ -133,17 +131,7 @@ export const TokenConfig = () => {
       }
 
       toast.loading('Connecting to Solana...', { id: creationToast });
-      const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
-      if (rpcError) {
-        console.error('RPC URL fetch error:', rpcError);
-        throw new Error('Failed to get RPC URL');
-      }
-
-      const connection = new Connection(rpcUrl, {
-        commitment: 'confirmed',
-        confirmTransactionInitialTimeout: 60000
-      });
-
+      const connection = new Connection('https://api.devnet.solana.com');
       const { blockhash } = await connection.getLatestBlockhash('confirmed');
       console.log('Initial blockhash:', blockhash);
 
@@ -152,10 +140,11 @@ export const TokenConfig = () => {
 
       toast.loading('Creating token transaction...', { id: creationToast });
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({
+        body: {
           tokenName: tokenData.name,
           tokenSymbol: tokenData.symbol,
           decimals: Number(tokenData.decimals),
@@ -171,7 +160,7 @@ export const TokenConfig = () => {
           revokeFreeze: tokenData.revokeFreeze,
           revokeMint: tokenData.revokeMint,
           revokeUpdate: tokenData.revokeUpdate
-        })
+        }
       });
 
       if (functionError || !tokenResponse?.success) {
