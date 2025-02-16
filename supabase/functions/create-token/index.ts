@@ -1,7 +1,8 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'https://esm.sh/@solana/web3.js@1.87.6'
-import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11'
+// Use pure JavaScript implementation by adding ?target=es2022&deno-std=0.177.0
+import { Connection, PublicKey, Transaction, SystemProgram, Keypair } from 'https://esm.sh/@solana/web3.js@1.87.6?target=es2022&deno-std=0.177.0'
+import { TOKEN_PROGRAM_ID, MINT_SIZE, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token@0.3.11?target=es2022'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
 import { decode as base64decode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
@@ -26,20 +27,53 @@ serve(async (req) => {
     }
 
     console.log('Creating connection to Solana...');
-    const connection = new Connection(rpcUrl, 'confirmed');
-    const ownerPublicKey = new PublicKey(ownerAddress);
-    
+    const connection = new Connection(rpcUrl, {
+      commitment: 'confirmed',
+      fetch: (url, options) => {
+        console.log('Making RPC request to:', url);
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...options?.headers,
+            'Content-Type': 'application/json',
+          }
+        });
+      }
+    });
+
     try {
+      const ownerPublicKey = new PublicKey(ownerAddress);
+      
       // Generate new mint account
       const mintKeypair = Keypair.generate();
       console.log('Generated mint keypair:', mintKeypair.publicKey.toString());
 
-      // Calculate minimum rent
-      const rentRequired = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
-      console.log('Minimum rent required:', rentRequired);
+      // Calculate minimum rent with retries
+      let rentRequired;
+      try {
+        rentRequired = await connection.getMinimumBalanceForRentExemption(MINT_SIZE);
+        console.log('Minimum rent required:', rentRequired);
+      } catch (error) {
+        console.error('Failed to get rent:', error);
+        throw new Error('Failed to calculate rent requirement');
+      }
 
       // Create transaction
       const transaction = new Transaction();
+      
+      // Get latest blockhash with retries
+      let blockhash;
+      try {
+        const { blockhash: latestBlockhash } = await connection.getLatestBlockhash('confirmed');
+        blockhash = latestBlockhash;
+        console.log('Got blockhash:', blockhash);
+      } catch (error) {
+        console.error('Failed to get blockhash:', error);
+        throw new Error('Failed to get latest blockhash');
+      }
+      
+      transaction.recentBlockhash = blockhash;
+      transaction.feePayer = ownerPublicKey;
       
       // Add create account instruction
       transaction.add(
@@ -62,11 +96,6 @@ serve(async (req) => {
           TOKEN_PROGRAM_ID
         )
       );
-
-      // Get latest blockhash
-      const { blockhash } = await connection.getLatestBlockhash('confirmed');
-      transaction.recentBlockhash = blockhash;
-      transaction.feePayer = ownerPublicKey;
 
       // Sign with mint account
       transaction.sign(mintKeypair);
@@ -95,7 +124,13 @@ serve(async (req) => {
 
     } catch (error) {
       console.error('Transaction creation error:', error);
-      throw error;
+      if (error instanceof Error) {
+        if (error.message.includes('MethodNotFound')) {
+          throw new Error('RPC method not supported. Please check your RPC endpoint configuration.');
+        }
+        throw error;
+      }
+      throw new Error('Unknown error occurred during transaction creation');
     }
 
   } catch (error) {
