@@ -18,20 +18,15 @@ interface TokenSocialDetailsProps {
     revokeFreeze: boolean;
     revokeMint: boolean;
     revokeUpdate: boolean;
-    description: string;
   };
   onTokenDataChange: (data: any) => void;
   onBack: () => void;
-  onCreateToken: () => Promise<void>;
-  isCreating: boolean;
 }
 
 export const TokenSocialDetails = ({
   tokenData,
   onTokenDataChange,
-  onBack,
-  onCreateToken,
-  isCreating
+  onBack
 }: TokenSocialDetailsProps) => {
   // Enable all switches by default when component mounts
   useEffect(() => {
@@ -42,31 +37,22 @@ export const TokenSocialDetails = ({
       revokeMint: true,
       revokeUpdate: true
     });
-  }, []); 
+  }, []); // Empty dependency array means this runs once on mount
 
   // Calculate total cost based on enabled switches
   const calculateTotalCost = () => {
-    let cost = 0.05; // Base cost for token creation
+    let cost = 0.1; // Base cost
     if (tokenData.modifyCreator) cost += 0.1;
     if (tokenData.revokeFreeze) cost += 0.1;
     if (tokenData.revokeMint) cost += 0.1;
     if (tokenData.revokeUpdate) cost += 0.1;
-    return cost.toFixed(2);
+    return cost.toFixed(1);
   };
 
   return (
     <Card className="p-8 space-y-6 bg-slate-800/50 backdrop-blur-sm border border-slate-700 shadow-xl">
       <div className="space-y-6">
         <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-200">Description</label>
-            <Input 
-              placeholder="Describe your token's purpose..."
-              className="bg-slate-900/50 border-slate-700 text-white placeholder:text-slate-500"
-              value={tokenData.description}
-              onChange={(e) => onTokenDataChange({ ...tokenData, description: e.target.value })}
-            />
-          </div>
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-200">Website</label>
             <Input 
@@ -216,23 +202,13 @@ export const TokenSocialDetails = ({
             variant="outline"
             className="px-8"
             onClick={onBack}
-            disabled={isCreating}
           >
             Back
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
-            onClick={onCreateToken}
-            disabled={isCreating}
           >
-            {isCreating ? (
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
-                Creating Token...
-              </div>
-            ) : (
-              'Create Token'
-            )}
+            Create Token
           </Button>
         </div>
       </div>

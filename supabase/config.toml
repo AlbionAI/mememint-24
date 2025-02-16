@@ -1,5 +1,0 @@
-
-project_id = "sdfpawjitlhyqzwwlzvg"
-
-[functions.create-token]
-verify_jwt = false
