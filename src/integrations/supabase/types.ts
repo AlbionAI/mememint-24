@@ -9,7 +9,42 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      token_creations: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          metadata_uri: string | null
+          mint_address: string
+          name: string
+          symbol: string
+          tx_signature: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata_uri?: string | null
+          mint_address: string
+          name: string
+          symbol: string
+          tx_signature: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          metadata_uri?: string | null
+          mint_address?: string
+          name?: string
+          symbol?: string
+          tx_signature?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
