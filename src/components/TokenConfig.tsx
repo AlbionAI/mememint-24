@@ -77,13 +77,30 @@ export const TokenConfig = () => {
         console.log('Logo uploaded:', logoUrl);
       }
 
+      // Get RPC URL first to ensure connection
+      const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
+      if (rpcError) {
+        console.error('RPC URL fetch error:', rpcError);
+        throw new Error('Failed to get RPC URL');
+      }
+
+      const connection = new Connection(rpcUrl, {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 60000
+      });
+
+      // Get recent blockhash before creating token
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      console.log('Initial blockhash:', blockhash);
+
       // Create token parameters
       console.log('Creating token with parameters:', {
         tokenName: tokenData.name,
         tokenSymbol: tokenData.symbol,
         decimals: Number(tokenData.decimals),
         initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
-        ownerAddress: publicKey.toString()
+        ownerAddress: publicKey.toString(),
+        blockhash // Pass blockhash to edge function
       });
 
       const { data: tokenResponse, error: functionError } = await supabase.functions.invoke('create-token', {
@@ -92,7 +109,8 @@ export const TokenConfig = () => {
           tokenSymbol: tokenData.symbol,
           decimals: Number(tokenData.decimals),
           initialSupply: Number(tokenData.totalSupply.replace(/,/g, '')),
-          ownerAddress: publicKey.toString()
+          ownerAddress: publicKey.toString(),
+          blockhash // Include blockhash in request
         })
       });
 
@@ -102,15 +120,6 @@ export const TokenConfig = () => {
       }
 
       console.log('Token creation response:', tokenResponse);
-
-      // Get RPC URL
-      const { data: { rpcUrl }, error: rpcError } = await supabase.functions.invoke('get-rpc-url');
-      if (rpcError) {
-        console.error('RPC URL fetch error:', rpcError);
-        throw new Error('Failed to get RPC URL');
-      }
-
-      const connection = new Connection(rpcUrl, 'confirmed');
 
       try {
         console.log('Processing transaction...');
@@ -125,36 +134,18 @@ export const TokenConfig = () => {
           instructions: transaction.instructions.length
         });
 
-        // Update blockhash
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockhash;
-        console.log('Updated blockhash:', blockhash);
-
         // Sign transaction
         console.log('Requesting wallet signature...');
-        let signedTransaction;
-        try {
-          signedTransaction = await signTransaction(transaction);
-          console.log('Transaction signed successfully');
-        } catch (error: any) {
-          console.error('Wallet signing error:', {
-            name: error.name,
-            message: error.message,
-            stack: error.stack
-          });
-          
-          if (error.name === 'WalletSignTransactionError') {
-            if (error.message.includes('User rejected')) {
-              throw new Error('Transaction rejected by user');
-            }
-            throw new Error('Failed to sign transaction. Please try again');
-          }
-          throw error;
-        }
+        const signedTransaction = await signTransaction(transaction);
+        console.log('Transaction signed successfully');
 
         // Send transaction
         console.log('Sending transaction...');
-        const signature = await connection.sendRawTransaction(signedTransaction.serialize());
+        const signature = await connection.sendRawTransaction(signedTransaction.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: 'confirmed',
+          maxRetries: 5
+        });
         console.log('Transaction sent:', signature);
 
         // Wait for confirmation

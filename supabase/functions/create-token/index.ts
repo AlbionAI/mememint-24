@@ -19,7 +19,7 @@ serve(async (req) => {
 
   try {
     console.log('Starting request processing...');
-    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress } = await req.json();
+    const { tokenName, tokenSymbol, decimals, initialSupply, ownerAddress, blockhash } = await req.json();
     const rpcUrl = Deno.env.get('SOLANA_RPC_URL');
     
     if (!rpcUrl) {
@@ -29,7 +29,7 @@ serve(async (req) => {
     console.log('Creating connection to Solana...');
     const connection = new Connection(rpcUrl, {
       commitment: 'confirmed',
-      confirmTransactionInitialTimeout: 60000, // 60 seconds
+      confirmTransactionInitialTimeout: 60000
     });
 
     try {
@@ -66,24 +66,7 @@ serve(async (req) => {
       // Create transaction with versioned format for better compatibility
       const transaction = new Transaction();
       
-      // Get latest blockhash with retry logic
-      let blockhash;
-      try {
-        const { blockhash: latestBlockhash } = await connection.getLatestBlockhash('confirmed');
-        blockhash = latestBlockhash;
-        console.log('Got blockhash:', blockhash);
-      } catch (error) {
-        console.error('Failed to get blockhash, retrying...', error);
-        // Retry once after a short delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const { blockhash: retryBlockhash } = await connection.getLatestBlockhash('confirmed');
-        blockhash = retryBlockhash;
-      }
-
-      if (!blockhash) {
-        throw new Error('Failed to get latest blockhash');
-      }
-      
+      // Use provided blockhash from frontend
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = ownerPublicKey;
       
@@ -110,7 +93,7 @@ serve(async (req) => {
       // Sign with mint account
       transaction.partialSign(mintKeypair);
 
-      // Serialize the transaction with minimal requirements
+      // Serialize the transaction
       const serializedTransaction = transaction.serialize({
         requireAllSignatures: false,
         verifySignatures: false
