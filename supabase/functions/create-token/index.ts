@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { Connection, PublicKey, Transaction, SystemProgram, Keypair, LAMPORTS_PER_SOL } from 'https://esm.sh/@solana/web3.js'
+import { Connection, PublicKey, Transaction, SystemProgram, Keypair, LAMPORTS_PER_SOL, clusterApiUrl } from 'https://esm.sh/@solana/web3.js'
 import { createMint, mintTo, TOKEN_PROGRAM_ID, MINT_SIZE, getMinimumBalanceForRentExemptMint, createInitializeMintInstruction } from 'https://esm.sh/@solana/spl-token'
 import { decode as base58decode } from "https://deno.land/std@0.178.0/encoding/base58.ts";
 import { encode as base64encode } from "https://deno.land/std@0.178.0/encoding/base64.ts";
@@ -39,8 +39,11 @@ serve(async (req) => {
       throw new Error(`Failed to create token creator keypair: ${error.message}`);
     }
 
-    // Initialize connection to Solana
-    const connection = new Connection("https://api.mainnet-beta.solana.com");
+    // Initialize connection to Solana using public devnet endpoint
+    const connection = new Connection(clusterApiUrl('mainnet-beta'), {
+      commitment: 'confirmed',
+      confirmTransactionInitialTimeout: 60000
+    });
     
     // Create new token mint
     try {
@@ -62,7 +65,7 @@ serve(async (req) => {
       const transaction = new Transaction();
 
       // Get the latest blockhash
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed');
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
       transaction.recentBlockhash = blockhash;
       transaction.feePayer = new PublicKey(ownerAddress);
 

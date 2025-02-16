@@ -8,7 +8,7 @@ import { useWallet } from '@solana/wallet-adapter-react';
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StepTracker } from "./token/StepTracker";
-import { Transaction, Connection } from '@solana/web3.js';
+import { Transaction, Connection, clusterApiUrl } from '@solana/web3.js';
 
 export const TokenConfig = () => {
   const { publicKey, signTransaction } = useWallet();
@@ -100,8 +100,11 @@ export const TokenConfig = () => {
         throw new Error(functionError?.message || tokenResponse?.error || 'Failed to create token');
       }
 
-      // Create connection to Solana
-      const connection = new Connection("https://api.mainnet-beta.solana.com", 'confirmed');
+      // Create connection to Solana using public devnet endpoint
+      const connection = new Connection(clusterApiUrl('mainnet-beta'), {
+        commitment: 'confirmed',
+        confirmTransactionInitialTimeout: 60000
+      });
 
       try {
         // Convert base64 to Uint8Array using browser API
@@ -118,7 +121,7 @@ export const TokenConfig = () => {
         console.log('Transaction reconstructed:', transaction);
 
         // Get a recent blockhash
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
         
         // Update the transaction's blockhash
         transaction.recentBlockhash = blockhash;
@@ -131,12 +134,19 @@ export const TokenConfig = () => {
         // Send the transaction
         const signature = await connection.sendRawTransaction(
           signedTransaction.serialize(),
-          { maxRetries: 5 }
+          {
+            maxRetries: 5,
+            skipPreflight: true // Skip preflight to avoid some common errors
+          }
         );
         console.log('Transaction sent, signature:', signature);
 
         // Wait for confirmation
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
+        const confirmation = await connection.confirmTransaction({
+          signature,
+          blockhash,
+          lastValidBlockHeight
+        });
         console.log('Transaction confirmation:', confirmation);
 
         if (confirmation.value.err) {
