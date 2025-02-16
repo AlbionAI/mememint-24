@@ -97,7 +97,7 @@ export const TokenConfig = () => {
             onTokenDataChange={onTokenDataChange}
             onBack={() => setCurrentStep(2)}
             isCreating={isCreating}
-            onSubmit={handleCreateToken}
+            onCreateToken={handleCreateToken}
           />
         )}
       </div>
