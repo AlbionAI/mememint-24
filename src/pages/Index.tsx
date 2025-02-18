@@ -4,6 +4,7 @@ import { Navigation } from "@/components/Navigation";
 import { BackgroundBeams } from "@/components/ui/background-beams";
 import { WalletConnect } from "@/components/WalletConnect";
 import { useWallet } from '@solana/wallet-adapter-react';
+import { motion } from "framer-motion";
 
 const Index = () => {
   const { connected } = useWallet();
@@ -19,25 +20,49 @@ const Index = () => {
           <div className="container px-4 py-8 mx-auto">
             <div className="max-w-6xl mx-auto space-y-8">
               {!connected ? (
-                <>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
                   <div className="text-center space-y-4">
-                    <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
+                    <motion.h1 
+                      className="text-4xl md:text-5xl font-bold text-white tracking-tight"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.2 }}
+                    >
                       Launch a Meme Coin At Lightning Speed
-                    </h1>
-                    <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+                    </motion.h1>
+                    <motion.p 
+                      className="text-lg text-slate-400 max-w-2xl mx-auto"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.5, delay: 0.3 }}
+                    >
                       No coding required, launched in seconds the professional way.
-                    </p>
+                    </motion.p>
                   </div>
-                  <div className="flex justify-center items-center py-12">
+                  <motion.div 
+                    className="flex justify-center items-center py-12"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: 0.4 }}
+                  >
                     <WalletConnect />
-                  </div>
-                </>
+                  </motion.div>
+                </motion.div>
               ) : (
-                <div className="grid gap-8 md:grid-cols-2">
+                <motion.div 
+                  className="grid gap-8 md:grid-cols-2"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
                   <div className="col-span-2">
                     <TokenConfig />
                   </div>
-                </div>
+                </motion.div>
               )}
             </div>
           </div>
