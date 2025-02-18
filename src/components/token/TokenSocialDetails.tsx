@@ -3,11 +3,18 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { useEffect } from "react";
-import { Coins } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Coins, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface TokenSocialDetailsProps {
   tokenData: {
+    name: string;
+    symbol: string;
+    logo: File | null;
+    decimals: string;
+    totalSupply: string;
+    description: string;
     website: string;
     twitter: string;
     telegram: string;
@@ -28,6 +35,8 @@ export const TokenSocialDetails = ({
   onTokenDataChange,
   onBack
 }: TokenSocialDetailsProps) => {
+  const [isCreating, setIsCreating] = useState(false);
+
   // Enable all switches by default when component mounts
   useEffect(() => {
     onTokenDataChange({
@@ -37,9 +46,8 @@ export const TokenSocialDetails = ({
       revokeMint: true,
       revokeUpdate: true
     });
-  }, []); // Empty dependency array means this runs once on mount
+  }, []); 
 
-  // Calculate total cost based on enabled switches
   const calculateTotalCost = () => {
     let cost = 0.1; // Base cost
     if (tokenData.modifyCreator) cost += 0.1;
@@ -47,6 +55,61 @@ export const TokenSocialDetails = ({
     if (tokenData.revokeMint) cost += 0.1;
     if (tokenData.revokeUpdate) cost += 0.1;
     return cost.toFixed(1);
+  };
+
+  const createToken = async () => {
+    try {
+      setIsCreating(true);
+      
+      // Convert logo to base64 if it exists
+      let imageBase64 = null;
+      if (tokenData.logo) {
+        const buffer = await tokenData.logo.arrayBuffer();
+        const base64String = Buffer.from(buffer).toString('base64');
+        imageBase64 = `data:${tokenData.logo.type};base64,${base64String}`;
+      }
+
+      const response = await fetch("https://vigorous-whispering-clam.glitch.me/create-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: tokenData.name,
+          symbol: tokenData.symbol,
+          supply: tokenData.totalSupply,
+          decimals: parseInt(tokenData.decimals),
+          description: tokenData.description,
+          image: imageBase64,
+          website: tokenData.website,
+          twitter: tokenData.twitter,
+          telegram: tokenData.telegram,
+          discord: tokenData.discord,
+          creatorName: tokenData.creatorName,
+          creatorWebsite: tokenData.creatorWebsite,
+          revokeAuthorities: {
+            freeze: tokenData.revokeFreeze,
+            mint: tokenData.revokeMint,
+            update: tokenData.revokeUpdate
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create token');
+      }
+
+      const data = await response.json();
+      console.log("Token Created:", data);
+      toast.success("Token created successfully!");
+      
+      // Here you might want to redirect to a success page or show more details
+      
+    } catch (error) {
+      console.error("Error creating token:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create token");
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -207,8 +270,17 @@ export const TokenSocialDetails = ({
           </Button>
           <Button 
             className="px-8 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+            onClick={createToken}
+            disabled={isCreating}
           >
-            Create Token
+            {isCreating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              'Create Token'
+            )}
           </Button>
         </div>
       </div>
